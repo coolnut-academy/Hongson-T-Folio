@@ -33,7 +33,28 @@ export const generatePDF = async (elementId: string, filename: string = 'report'
       scale: 2,
       useCORS: true,
       letterRendering: true,
-      logging: false
+      logging: false,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      onclone: (clonedDoc: Document) => {
+        // Fix for unsupported color functions (lab, oklab, etc.)
+        const elements = clonedDoc.querySelectorAll('*');
+        elements.forEach((el: Element) => {
+          if (el instanceof HTMLElement) {
+            const style = window.getComputedStyle(el);
+            // Convert computed colors to RGB
+            if (style.color) {
+              el.style.color = style.color;
+            }
+            if (style.backgroundColor) {
+              el.style.backgroundColor = style.backgroundColor;
+            }
+            if (style.borderColor) {
+              el.style.borderColor = style.borderColor;
+            }
+          }
+        });
+      }
     },
     jsPDF: { 
       unit: 'mm', 
@@ -102,7 +123,28 @@ export const generatePDFLandscape = async (elementId: string, filename: string =
       scale: 2,
       useCORS: true,
       letterRendering: true,
-      logging: false
+      logging: false,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      onclone: (clonedDoc: Document) => {
+        // Fix for unsupported color functions (lab, oklab, etc.)
+        const elements = clonedDoc.querySelectorAll('*');
+        elements.forEach((el: Element) => {
+          if (el instanceof HTMLElement) {
+            const style = window.getComputedStyle(el);
+            // Convert computed colors to RGB
+            if (style.color) {
+              el.style.color = style.color;
+            }
+            if (style.backgroundColor) {
+              el.style.backgroundColor = style.backgroundColor;
+            }
+            if (style.borderColor) {
+              el.style.borderColor = style.borderColor;
+            }
+          }
+        });
+      }
     },
     jsPDF: { 
       unit: 'mm', 
