@@ -5,7 +5,7 @@ import { collection, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase';
 import { getUsersCollection, getEntriesCollection, getApprovalsCollection, getApprovalDocId, DEPARTMENTS } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
-import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle } from 'lucide-react';
+import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download, Printer } from 'lucide-react';
 import ReportView from '@/components/ReportView';
 
 interface User {
@@ -29,7 +29,12 @@ export default function CompliancePage() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [viewUserWork, setViewUserWork] = useState<User | null>(null);
   const [filterDept, setFilterDept] = useState('All');
-  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const today = new Date();
+  const [filterYear, setFilterYear] = useState(today.getFullYear());
+  const [filterMonthNum, setFilterMonthNum] = useState(today.getMonth() + 1);
+  
+  // Compute YYYY-MM format from year and month
+  const filterMonth = `${filterYear}-${String(filterMonthNum).padStart(2, '0')}`;
 
   // Identify Role Capabilities
   const isDirector = userData?.username === 'admin' || userData?.role === 'director';
@@ -188,14 +193,32 @@ export default function CompliancePage() {
         </div>
 
         <div className="flex flex-wrap gap-3 items-center bg-gray-50 p-3 rounded-lg">
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-500">เดือนที่ตรวจ</span>
-            <input
-              type="month"
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
-              className="border p-1.5 rounded-md text-sm"
-            />
+          <div className="flex gap-2">
+            <div className="flex flex-col">
+              <span className="text-xs text-gray-500">ปี พ.ศ.</span>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(Number(e.target.value))}
+                className="border p-1.5 rounded-md text-sm w-24"
+              >
+                {Array.from({ length: 5 }, (_, i) => today.getFullYear() - i).map(y => (
+                  <option key={y} value={y}>{y + 543}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs text-gray-500">เดือน</span>
+              <select
+                value={filterMonthNum}
+                onChange={(e) => setFilterMonthNum(Number(e.target.value))}
+                className="border p-1.5 rounded-md text-sm w-32"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                  const monthName = new Date(2024, m - 1).toLocaleDateString('th-TH', { month: 'long' });
+                  return <option key={m} value={m}>{monthName}</option>;
+                })}
+              </select>
+            </div>
           </div>
           <div className="flex flex-col">
             <span className="text-xs text-gray-500">กลุ่มสาระฯ</span>
@@ -401,15 +424,15 @@ export default function CompliancePage() {
       {/* Modal View Work */}
       {viewUserWork && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b sticky top-0 bg-white flex justify-between items-center z-10">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto print:max-h-full">
+            <div className="p-4 border-b sticky top-0 bg-white flex justify-between items-center z-10 print:relative">
               <div>
                 <h3 className="font-bold text-lg">ผลงาน: {viewUserWork.name}</h3>
                 <p className="text-sm text-gray-500">ประจำเดือน {filterMonth}</p>
               </div>
               <button
                 onClick={() => setViewUserWork(null)}
-                className="text-gray-500 hover:text-red-500"
+                className="text-gray-500 hover:text-red-500 print:hidden"
               >
                 <XCircle className="w-6 h-6" />
               </button>
@@ -428,8 +451,27 @@ export default function CompliancePage() {
                 />
               )}
             </div>
-            {canApprove && (
-              <div className="p-4 border-t bg-gray-50 flex justify-end">
+            <div className="p-4 border-t bg-gray-50 flex flex-col sm:flex-row justify-between gap-3">
+              {/* Export Buttons */}
+              {getModalEntries().length > 0 && (
+                <div className="flex gap-2 flex-1 print:hidden">
+                  <button
+                    onClick={() => window.print()}
+                    className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
+                  >
+                    <Download className="w-4 h-4" /> บันทึก PDF
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
+                  >
+                    <Printer className="w-4 h-4" /> พิมพ์รายงาน
+                  </button>
+                </div>
+              )}
+              
+              {/* Approve Button */}
+              {canApprove && (
                 <button
                   onClick={async () => {
                     if (confirm('ยืนยันอนุมัติผลงานนี้?')) {
@@ -459,12 +501,12 @@ export default function CompliancePage() {
                       setViewUserWork(null);
                     }
                   }}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium print:hidden whitespace-nowrap"
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" /> อนุมัติทันที ({isDirector ? 'ผอ.' : 'รอง ผอ.'})
+                  <CheckCircle className="w-4 h-4" /> อนุมัติทันที ({isDirector ? 'ผอ.' : 'รอง ผอ.'})
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

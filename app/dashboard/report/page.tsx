@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { getEntriesCollection } from '@/lib/constants';
 import ReportView from '@/components/ReportView';
 import { motion } from 'framer-motion';
-import { Printer, Calendar, Filter, FileText, ArrowRight } from 'lucide-react';
+import { Printer, Calendar, Filter, FileText, Download } from 'lucide-react';
 
 interface Entry {
   id: string;
@@ -88,6 +88,10 @@ export default function ReportPage() {
     window.print();
   };
 
+  const handleSavePDF = () => {
+    window.print();
+  };
+
   // --- Skeleton Loader ---
   if (loading) {
     return (
@@ -125,13 +129,24 @@ export default function ReportPage() {
                 เลือกช่วงเวลาและจัดเรียงข้อมูลเพื่อพิมพ์รายงานสรุปผลงาน
               </p>
             </div>
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={handlePrint}
-              className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-slate-800 hover:bg-slate-900 active:bg-black text-white rounded-xl font-medium shadow-lg shadow-slate-500/20 flex items-center justify-center gap-2 transition-all"
-            >
-              <Printer className="w-4 h-4" /> พิมพ์รายงาน
-            </motion.button>
+            
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSavePDF}
+                className="flex-1 sm:flex-initial px-5 py-3 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
+              >
+                <Download className="w-4 h-4" /> บันทึก PDF
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={handlePrint}
+                className="flex-1 sm:flex-initial px-5 py-3 sm:py-2.5 bg-slate-800 hover:bg-slate-900 active:bg-black text-white rounded-xl font-medium shadow-lg shadow-slate-500/20 flex items-center justify-center gap-2 transition-all"
+              >
+                <Printer className="w-4 h-4" /> พิมพ์รายงาน
+              </motion.button>
+            </div>
           </div>
 
           {/* Toolbar / Filters - Mobile Optimized */}

@@ -73,41 +73,42 @@ export default function DashboardPage() {
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
+  
+  // Month selector - default to current month
+  const today = new Date();
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
+  const [showMonthSelector, setShowMonthSelector] = useState(false);
 
   // --- Logic (Preserved) ---
 
   const monthlyStatus = useMemo(() => {
     if (!userData) return [];
     
-    const today = new Date();
-    const status: MonthlyStatus[] = [];
     const userId = userData.id;
+    const year = selectedYear;
+    const month = selectedMonth;
+    const mm = String(month).padStart(2, '0');
+    const key = `${userId}_${year}-${mm}`;
+    
+    const workCount = entries.filter((e) => {
+      const eDate = new Date(e.dateStart);
+      return eDate.getFullYear() === year && eDate.getMonth() + 1 === month;
+    }).length;
 
-    for (let i = 0; i < 6; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const year = d.getFullYear();
-      const month = d.getMonth() + 1;
-      const mm = String(month).padStart(2, '0');
-      const key = `${userId}_${year}-${mm}`;
-      
-      const workCount = entries.filter((e) => {
-        const eDate = new Date(e.dateStart);
-        return eDate.getFullYear() === year && eDate.getMonth() + 1 === month;
-      }).length;
+    const approval = approvals[key] || { director: false, deputy: false };
+    
+    const d = new Date(year, month - 1, 1);
 
-      const approval = approvals[key] || { director: false, deputy: false };
-
-      status.push({
-        month: d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }),
-        monthNum: month,
-        deputyApproved: approval.deputy,
-        directorApproved: approval.director,
-        entryCount: workCount,
-        key: key,
-      });
-    }
-    return status;
-  }, [userData, approvals, entries]);
+    return [{
+      month: d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }),
+      monthNum: month,
+      deputyApproved: approval.deputy,
+      directorApproved: approval.director,
+      entryCount: workCount,
+      key: key,
+    }];
+  }, [userData, approvals, entries, selectedYear, selectedMonth]);
 
   useEffect(() => {
     if (!userData) return;
@@ -155,15 +156,23 @@ export default function DashboardPage() {
   }, [userData]);
 
   const filteredEntries = entries.filter((entry) => {
+    const entryDate = new Date(entry.dateStart);
+    
+    // Filter by selected month and year
+    const matchMonth = entryDate.getFullYear() === selectedYear && entryDate.getMonth() + 1 === selectedMonth;
+    
+    // Filter by category
     const matchCat = filterCategory === 'All' || entry.category === filterCategory;
+    
+    // Optional date range filter (if user sets it)
     let matchDate = true;
     if (filterDateStart && filterDateEnd) {
-      const entryDate = new Date(entry.dateStart);
       const start = new Date(filterDateStart);
       const end = new Date(filterDateEnd);
       matchDate = entryDate >= start && entryDate <= end;
     }
-    return matchCat && matchDate;
+    
+    return matchMonth && matchCat && matchDate;
   });
 
   // --- Render ---
@@ -187,59 +196,97 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-6">
             
-            {/* 📊 Monthly Status - Horizontal Scroll on Mobile */}
+            {/* 📊 Monthly Status - Mobile */}
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="lg:hidden"
             >
               <div className="bg-white rounded-2xl p-4 shadow-lg shadow-slate-200/50 border border-slate-100">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                  <div className="p-1.5 bg-green-100 text-green-600 rounded-lg">
-                    <Calendar className="w-4 h-4" />
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-green-100 text-green-600 rounded-lg">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <h3 className="font-bold text-slate-800 text-sm">สรุปสถานะ</h3>
                   </div>
-                  <h3 className="font-bold text-slate-800 text-sm">สรุปสถานะ</h3>
+                  <button
+                    onClick={() => setShowMonthSelector(!showMonthSelector)}
+                    className="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+                  >
+                    เลือกเดือน
+                  </button>
                 </div>
                 
-                {/* Mobile: Horizontal Scroll */}
-                <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-                  {monthlyStatus.slice(0, 3).map((status, idx) => {
-                    const approval = approvals[status.key] || { deputy: false, director: false };
-                    const isCurrentMonth = idx === 0;
-                    
-                    return (
-                      <div 
-                        key={status.monthNum}
-                        className={`flex-shrink-0 w-[85%] sm:w-64 p-3 rounded-xl border snap-center ${
-                          isCurrentMonth 
-                            ? 'bg-green-50/50 border-green-100' 
-                            : 'bg-slate-50/50 border-slate-100'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <span className={`text-xs font-semibold ${isCurrentMonth ? 'text-green-900' : 'text-slate-600'}`}>
-                            {status.month}
-                          </span>
-                          <span className="text-[10px] font-medium bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
-                            {status.entryCount} งาน
-                          </span>
+                {/* Month Selector */}
+                {showMonthSelector && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200"
+                  >
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">ปี</label>
+                        <select
+                          value={selectedYear}
+                          onChange={(e) => setSelectedYear(Number(e.target.value))}
+                          className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        >
+                          {Array.from({ length: 5 }, (_, i) => today.getFullYear() - i).map(y => (
+                            <option key={y} value={y}>{y + 543}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">เดือน</label>
+                        <select
+                          value={selectedMonth}
+                          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                          className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                            const monthName = new Date(2024, m - 1).toLocaleDateString('th-TH', { month: 'long' });
+                            return <option key={m} value={m}>{monthName}</option>;
+                          })}
+                        </select>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* Current Month Display */}
+                {monthlyStatus.map((status) => {
+                  const approval = approvals[status.key] || { deputy: false, director: false };
+                  
+                  return (
+                    <div 
+                      key={status.monthNum}
+                      className="p-3 rounded-xl border bg-green-50/50 border-green-100"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-semibold text-green-900">
+                          {status.month}
+                        </span>
+                        <span className="text-[10px] font-medium bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
+                          {status.entryCount} งาน
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className={`flex-1 py-1 rounded-lg text-[9px] font-semibold text-center border ${
+                          approval.deputy ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
+                        }`}>
+                          รองฯ {approval.deputy ? '✓' : ''}
                         </div>
-                        <div className="flex gap-2">
-                          <div className={`flex-1 py-1 rounded-lg text-[9px] font-semibold text-center border ${
-                            approval.deputy ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
-                          }`}>
-                            รองฯ {approval.deputy ? '✓' : ''}
-                          </div>
-                          <div className={`flex-1 py-1 rounded-lg text-[9px] font-semibold text-center border ${
-                            approval.director ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
-                          }`}>
-                            ผอ. {approval.director ? '✓' : ''}
-                          </div>
+                        <div className={`flex-1 py-1 rounded-lg text-[9px] font-semibold text-center border ${
+                          approval.director ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
+                        }`}>
+                          ผอ. {approval.director ? '✓' : ''}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
 
@@ -253,32 +300,58 @@ export default function DashboardPage() {
                 className="hidden lg:block lg:col-span-1"
               >
                 <div className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100 sticky top-24">
-                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                    <div className="p-2 bg-green-100 text-green-600 rounded-xl">
-                      <Calendar className="w-5 h-5" />
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-100 text-green-600 rounded-xl">
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <h3 className="font-bold text-slate-800">สรุปสถานะ</h3>
                     </div>
-                    <h3 className="font-bold text-slate-800">สรุปสถานะ</h3>
                   </div>
                   
+                  {/* Month Selector */}
+                  <div className="mb-4 p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">ปี พ.ศ.</label>
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none"
+                      >
+                        {Array.from({ length: 5 }, (_, i) => today.getFullYear() - i).map(y => (
+                          <option key={y} value={y}>{y + 543}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">เดือน</label>
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                          const monthName = new Date(2024, m - 1).toLocaleDateString('th-TH', { month: 'long' });
+                          return <option key={m} value={m}>{monthName}</option>;
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Current Month Status */}
                   <div className="space-y-4">
-                    {monthlyStatus.map((status, idx) => {
+                    {monthlyStatus.map((status) => {
                       const approval = approvals[status.key] || { deputy: false, director: false };
-                      const isCurrentMonth = idx === 0;
                       
                       return (
                         <motion.div 
                           key={status.monthNum}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          className={`p-4 rounded-2xl border transition-all ${
-                            isCurrentMonth 
-                              ? 'bg-green-50/50 border-green-100' 
-                              : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-md'
-                          }`}
+                          className="p-4 rounded-2xl border transition-all bg-green-50/50 border-green-100"
                         >
                           <div className="flex justify-between items-start mb-3">
-                            <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-green-900' : 'text-slate-600'}`}>
+                            <span className="text-sm font-semibold text-green-900">
                               {status.month}
                             </span>
                             <span className="text-xs font-medium bg-white px-2 py-1 rounded-lg text-slate-500 border border-slate-100 shadow-sm">
