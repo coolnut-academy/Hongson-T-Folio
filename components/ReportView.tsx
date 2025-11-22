@@ -63,7 +63,8 @@ export default function ReportView({
       <style jsx global>{`
         @media print {
           @page {
-            margin: 1.5cm;
+            /* Reserve extra top margin so browser header/footer never overlap report text */
+            margin: 2.5cm 1.5cm 1.5cm 1.5cm;
             size: A4;
           }
           body {
@@ -87,6 +88,15 @@ export default function ReportView({
           .page-break + .page-break {
             page-break-before: always;
             break-before: page;
+          }
+          .print-image-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            grid-auto-rows: minmax(6cm, 1fr);
+          }
+          .print-image-cell {
+            border-width: 1px;
+            border-color: #e2e8f0 !important;
+            page-break-inside: avoid;
           }
           /* Ensure images print but don't waste ink on backgrounds */
           img {
@@ -218,24 +228,37 @@ export default function ReportView({
                     )}
 
                     {/* Evidence Images (Visible in Print now!) */}
-                    {entry.images && entry.images.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1 no-print">
-                           <ImageIcon className="w-3 h-3" /> หลักฐานแนบ ({entry.images.length})
-                        </p>
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 print:grid-cols-4 print:gap-4">
-                          {entry.images.map((img, i) => (
-                            <div key={i} className="aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100 print:border-slate-300">
-                              <img
-                                src={img}
-                                className="w-full h-full object-cover"
-                                alt={`หลักฐาน ${i + 1}`}
-                              />
-                            </div>
-                          ))}
+                    {entry.images && entry.images.length > 0 && (() => {
+                      const displayImages = entry.images.slice(0, 4);
+                      const remainingImages = entry.images.length - displayImages.length;
+
+                      return (
+                        <div className="mt-3">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" /> หลักฐานแนบ ({entry.images.length})
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-2 print:gap-6 print-image-grid">
+                            {displayImages.map((img, i) => (
+                              <div
+                                key={i}
+                                className="relative aspect-square sm:aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 print:border-slate-300 print-image-cell"
+                              >
+                                <img
+                                  src={img}
+                                  className="w-full h-full object-cover"
+                                  alt={`หลักฐาน ${i + 1}`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          {remainingImages > 0 && (
+                            <p className="text-[10px] text-slate-400 mt-2 italic print:text-[9px]">
+                              * แสดงเฉพาะ 4 ภาพแรก ข้อมูลในระบบทั้งหมด {entry.images.length} ภาพ
+                            </p>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </motion.div>
               ))}
