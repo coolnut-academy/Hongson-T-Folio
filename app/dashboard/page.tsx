@@ -165,10 +165,14 @@ export default function DashboardPage() {
                     )}
                     <div className="flex items-center gap-1">
                       {status.deputyApproved && (
-                        <CheckCircle className="w-4 h-4 text-green-600" title="รอง ผอ. ตรวจแล้ว" />
+                        <span title="รอง ผอ. ตรวจแล้ว">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        </span>
                       )}
                       {status.directorApproved && (
-                        <CheckCircle className="w-4 h-4 text-blue-600" title="ผอ. ตรวจแล้ว" />
+                        <span title="ผอ. ตรวจแล้ว">
+                          <CheckCircle className="w-4 h-4 text-blue-600" />
+                        </span>
                       )}
                     </div>
                   </div>
