@@ -8,18 +8,11 @@ import { getEntriesCollection } from '@/lib/constants';
 import ReportView from '@/components/ReportView';
 import { motion } from 'framer-motion';
 import { Printer, Calendar, Filter, FileText, Download } from 'lucide-react';
-import { handlePrint } from '@/lib/pdfUtils';
-import ReportPdfDocument from '@/components/pdf/ReportPdfDocument';
+import { handlePrint, prepareEntriesForPdf } from '@/lib/pdfUtils';
+import ReportPdfDocument, { type ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
 
-interface Entry {
-  id: string;
-  title: string;
-  category: string;
-  description: string;
-  dateStart: string;
-  dateEnd: string;
-  images: string[];
+interface Entry extends ReportPdfEntry {
   createdAt: Timestamp;
   approved?: {
     deputy?: boolean;
@@ -115,9 +108,11 @@ export default function ReportPage() {
       })
       .replace(/\s/g, '-');
 
+    const preparedEntries = await prepareEntriesForPdf(items);
+
     await downloadPdf(
       <ReportPdfDocument
-        entries={items}
+        entries={preparedEntries}
         user={userData || { name: '' }}
         title="รายงานสรุปผลงานส่วนบุคคล"
         subtitle={getFilterSummary()}

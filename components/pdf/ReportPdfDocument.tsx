@@ -213,7 +213,7 @@ const ReportPdfDocument = ({
         <Text style={styles.emptyState}>ไม่มีข้อมูลในช่วงเวลาที่เลือก</Text>
       ) : (
         entries.map((entry, index) => (
-          <View key={`${entry.id}-${index}`} style={styles.entryCard}>
+          <View key={`${entry.id}-${index}`} style={styles.entryCard} wrap={false}>
             <Text style={styles.entryTitle}>
               {index + 1}. {entry.title}
             </Text>

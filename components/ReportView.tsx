@@ -84,6 +84,10 @@ export default function ReportView({
             page-break-inside: avoid;
             break-inside: avoid;
           }
+          .page-break + .page-break {
+            page-break-before: always;
+            break-before: page;
+          }
           /* Ensure images print but don't waste ink on backgrounds */
           img {
             max-width: 100%;

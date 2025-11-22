@@ -9,7 +9,7 @@ import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download
 import ReportView from '@/components/ReportView';
 import ReportPdfDocument, { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
-import { handlePrint } from '@/lib/pdfUtils';
+import { handlePrint, prepareEntriesForPdf } from '@/lib/pdfUtils';
 
 interface User {
   id: string;
@@ -186,9 +186,11 @@ export default function CompliancePage() {
     });
     const monthSlug = monthLabel.replace(/\s/g, '-');
 
+    const preparedEntries = await prepareEntriesForPdf(modalEntries);
+
     await downloadPdf(
       <ReportPdfDocument
-        entries={modalEntries}
+        entries={preparedEntries}
         user={viewUserWork}
         title={`รายงานประจำเดือน ${filterMonth}`}
         subtitle={`ข้อมูล ณ เดือน ${monthLabel}`}
