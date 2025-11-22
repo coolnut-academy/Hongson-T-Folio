@@ -26,7 +26,7 @@ export const generatePDF = async (elementId: string, filename: string = 'report'
   }
 
   const opt = {
-    margin: [10, 10, 10, 10],
+    margin: [10, 10, 10, 10] as [number, number, number, number],
     filename: `${filename}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { 
@@ -41,7 +41,7 @@ export const generatePDF = async (elementId: string, filename: string = 'report'
       orientation: 'portrait'
     },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-  };
+  } as const;
 
   try {
     // Show loading indicator
@@ -95,7 +95,7 @@ export const generatePDFLandscape = async (elementId: string, filename: string =
   }
 
   const opt = {
-    margin: [10, 10, 10, 10],
+    margin: [10, 10, 10, 10] as [number, number, number, number],
     filename: `${filename}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { 
@@ -110,7 +110,7 @@ export const generatePDFLandscape = async (elementId: string, filename: string =
       orientation: 'landscape' // Wide format for statistics
     },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-  };
+  } as const;
 
   try {
     const loadingToast = document.createElement('div');

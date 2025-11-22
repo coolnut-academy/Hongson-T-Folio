@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, Timestamp, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getEntriesCollection, getApprovalsCollection, getApprovalDocId } from '@/lib/constants';
-import { CheckCircle, Calendar, Image as ImageIcon, Filter, Clock, AlertCircle, ChevronRight } from 'lucide-react';
+import { CheckCircle, Calendar, Image as ImageIcon, Filter, Clock, AlertCircle, ChevronRight, Trash2, Edit, MoreVertical } from 'lucide-react';
 import { CATEGORIES } from '@/lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 
 // --- Types ---
 interface Entry {
@@ -65,6 +66,7 @@ const StatusBadge = ({ approved, label }: { approved: boolean; label: string }) 
 
 export default function DashboardPage() {
   const { userData } = useAuth();
+  const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvals, setApprovals] = useState<Record<string, { deputy: boolean; director: boolean }>>({});
@@ -79,6 +81,9 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
   const [showMonthSelector, setShowMonthSelector] = useState(false);
+  
+  // Actions menu
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // --- Logic (Preserved) ---
 
@@ -155,6 +160,18 @@ export default function DashboardPage() {
     };
   }, [userData]);
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (openMenuId) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
+
   const filteredEntries = entries.filter((entry) => {
     const entryDate = new Date(entry.dateStart);
     
@@ -174,6 +191,31 @@ export default function DashboardPage() {
     
     return matchMonth && matchCat && matchDate;
   });
+
+  // --- Actions Handlers ---
+  const handleDelete = async (entryId: string, entryTitle: string) => {
+    if (!confirm(`ต้องการลบผลงาน "${entryTitle}" ใช่หรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`)) {
+      return;
+    }
+
+    try {
+      const entriesPath = getEntriesCollection().split('/');
+      const entryRef = doc(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4], entryId);
+      await deleteDoc(entryRef);
+      
+      // Show success message
+      alert('✅ ลบผลงานเรียบร้อยแล้ว');
+      setOpenMenuId(null);
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      alert('❌ เกิดข้อผิดพลาดในการลบผลงาน กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
+  const handleEdit = (entryId: string) => {
+    // Navigate to edit page (we'll create this)
+    router.push(`/dashboard/edit/${entryId}`);
+  };
 
   // --- Render ---
 
@@ -475,10 +517,60 @@ export default function DashboardPage() {
                               </div>
                             )}
                             
-                            <div className="absolute top-4 right-4">
+                            {/* Category Badge */}
+                            <div className="absolute top-4 left-4">
                               <span className="bg-white/90 backdrop-blur-md text-green-600 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wide">
                                 {entry.category}
                               </span>
+                            </div>
+
+                            {/* Actions Menu */}
+                            <div className="absolute top-4 right-4">
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(openMenuId === entry.id ? null : entry.id);
+                                  }}
+                                  className="p-2 bg-white/90 backdrop-blur-md hover:bg-white rounded-full shadow-sm transition-all"
+                                >
+                                  <MoreVertical className="w-4 h-4 text-slate-600" />
+                                </button>
+                                
+                                {/* Dropdown Menu */}
+                                <AnimatePresence>
+                                  {openMenuId === entry.id && (
+                                    <motion.div
+                                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                      transition={{ duration: 0.15 }}
+                                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50"
+                                    >
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEdit(entry.id);
+                                        }}
+                                        className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center gap-3 text-sm font-medium text-slate-700 transition-colors"
+                                      >
+                                        <Edit className="w-4 h-4 text-blue-600" />
+                                        แก้ไขผลงาน
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDelete(entry.id, entry.title);
+                                        }}
+                                        className="w-full px-4 py-3 text-left hover:bg-red-50 flex items-center gap-3 text-sm font-medium text-red-600 transition-colors border-t border-slate-100"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                        ลบผลงาน
+                                      </button>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
                             </div>
 
                             {isFullyApproved && (

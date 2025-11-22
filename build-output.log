@@ -1,0 +1,35 @@
+
+> hongson-tfolio@0.1.0 build
+> next build
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/coolnutmacbook/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/coolnutmacbook/Desktop/Project in School/hongson-tfolio/package-lock.json
+
+   ▲ Next.js 16.0.3 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 4.6s
+   Running TypeScript ...
+Failed to compile.
+
+./lib/pdfUtils.ts:57:26
+Type error: Argument of type '{ margin: number[]; filename: string; image: { type: string; quality: number; }; html2canvas: { scale: number; useCORS: boolean; letterRendering: boolean; logging: boolean; }; jsPDF: { unit: string; format: string; orientation: string; }; pagebreak: { ...; }; }' is not assignable to parameter of type 'Html2PdfOptions'.
+  Types of property 'margin' are incompatible.
+    Type 'number[]' is not assignable to type 'number | [number, number] | [number, number, number, number] | undefined'.
+      Type 'number[]' is not assignable to type '[number, number] | [number, number, number, number]'.
+        Type 'number[]' is not assignable to type '[number, number, number, number]'.
+          Target requires 4 element(s) but source may have fewer.
+
+[0m [90m 55 |[39m     document[33m.[39mbody[33m.[39mappendChild(loadingToast)[33m;[39m
+ [90m 56 |[39m
+[31m[1m>[22m[39m[90m 57 |[39m     [36mawait[39m html2pdf()[33m.[39m[36mset[39m(opt)[33m.[39m[36mfrom[39m(element)[33m.[39msave()[33m;[39m
+ [90m    |[39m                          [31m[1m^[22m[39m
+ [90m 58 |[39m
+ [90m 59 |[39m     [90m// Remove loading and show success[39m
+ [90m 60 |[39m     loadingToast[33m.[39mremove()[33m;[39m[0m
+Next.js build worker exited with code: 1 and signal: null
