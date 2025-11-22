@@ -1,32 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, setDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase';
+import { collection, getDocs, setDoc, deleteDoc, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Trash2, Plus, X } from 'lucide-react';
+import { getUsersCollection, DEPARTMENTS } from '@/lib/constants';
 
 interface User {
   id: string;
-  email: string;
-  password?: string; // Only for display in this prototype
+  username: string;
+  password?: string; // Stored as plain text for prototype
   name: string;
   position: string;
   department: string;
   role: string;
 }
-
-const departments = [
-  'กลุ่มสาระฯ ภาษาไทย',
-  'คณิตศาสตร์',
-  'วิทยาศาสตร์',
-  'สังคมศึกษา ศาสนา และวัฒนธรรม',
-  'สุขศึกษาและพลศึกษา',
-  'ศิลปะ',
-  'การงานอาชีพและเทคโนโลยี',
-  'ภาษาต่างประเทศ',
-  'อื่นๆ',
-];
 
 const roles = [
   { value: 'user', label: 'ครู' },
@@ -40,42 +28,37 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
     name: '',
     position: '',
-    department: '',
+    department: DEPARTMENTS[0],
     role: 'user',
   });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, orderBy('name'));
-      const querySnapshot = await getDocs(q);
-      
+    const usersPath = getUsersCollection().split('/');
+    const usersRef = collection(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4]);
+    
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
       const usersData: User[] = [];
-      querySnapshot.forEach((doc) => {
+      snapshot.forEach((doc) => {
         usersData.push({
           id: doc.id,
           ...doc.data(),
         } as User);
       });
-
+      
+      // Sort by name
+      usersData.sort((a, b) => a.name.localeCompare(b.name));
       setUsers(usersData);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
-    } finally {
       setLoading(false);
-    }
-  };
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -90,16 +73,18 @@ export default function UsersPage() {
     setSubmitting(true);
 
     try {
-      // Create user in Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
+      // Check if username already exists
+      const existingUser = users.find(u => u.username === formData.username);
+      if (existingUser) {
+        setError('ชื่อผู้ใช้งานนี้ถูกใช้งานแล้ว');
+        setSubmitting(false);
+        return;
+      }
 
-      // Save user data to Firestore using UID as document ID
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        email: formData.email,
+      // Save user data to Firestore using username as document ID
+      const usersPath = getUsersCollection().split('/');
+      await setDoc(doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], formData.username), {
+        username: formData.username,
         password: formData.password, // Store as plain text for prototype
         name: formData.name,
         position: formData.position,
@@ -109,41 +94,30 @@ export default function UsersPage() {
 
       // Reset form
       setFormData({
-        email: '',
+        username: '',
         password: '',
         name: '',
         position: '',
-        department: '',
+        department: DEPARTMENTS[0],
         role: 'user',
       });
       setShowForm(false);
-      fetchUsers();
     } catch (err: any) {
       console.error('Error creating user:', err);
-      let errorMessage = 'เกิดข้อผิดพลาดในการสร้างผู้ใช้';
-      
-      if (err.code === 'auth/email-already-in-use') {
-        errorMessage = 'อีเมลนี้ถูกใช้งานแล้ว';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'อีเมลไม่ถูกต้อง';
-      } else if (err.code === 'auth/weak-password') {
-        errorMessage = 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
-      }
-      
-      setError(errorMessage);
+      setError('เกิดข้อผิดพลาดในการสร้างผู้ใช้');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (userId: string, userEmail: string) => {
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ ${userEmail}?`)) {
+  const handleDelete = async (userId: string, userName: string) => {
+    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ ${userName}?`)) {
       return;
     }
 
     try {
-      await deleteDoc(doc(db, 'users', userId));
-      fetchUsers();
+      const usersPath = getUsersCollection().split('/');
+      await deleteDoc(doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], userId));
     } catch (error) {
       console.error('Error deleting user:', error);
       setError('เกิดข้อผิดพลาดในการลบผู้ใช้');
@@ -182,11 +156,11 @@ export default function UsersPage() {
                 setShowForm(false);
                 setError('');
                 setFormData({
-                  email: '',
+                  username: '',
                   password: '',
                   name: '',
                   position: '',
-                  department: '',
+                  department: DEPARTMENTS[0],
                   role: 'user',
                 });
               }}
@@ -200,16 +174,16 @@ export default function UsersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  อีเมล <span className="text-red-500">*</span>
+                  ชื่อผู้ใช้งาน (Username) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
+                  type="text"
+                  name="username"
+                  value={formData.username}
                   onChange={handleInputChange}
                   required
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  placeholder="user@example.com"
+                  placeholder="username"
                 />
               </div>
 
@@ -270,8 +244,7 @@ export default function UsersPage() {
                   required
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 >
-                  <option value="">เลือกกลุ่มสาระฯ</option>
-                  {departments.map((dept) => (
+                  {DEPARTMENTS.map((dept) => (
                     <option key={dept} value={dept}>
                       {dept}
                     </option>
@@ -338,7 +311,7 @@ export default function UsersPage() {
                   ชื่อ-สกุล
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                  อีเมล
+                  Username
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
                   ตำแหน่ง
@@ -365,7 +338,7 @@ export default function UsersPage() {
                 users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition">
                     <td className="px-4 py-4 font-medium text-gray-900">{user.name}</td>
-                    <td className="px-4 py-4 text-gray-600">{user.email}</td>
+                    <td className="px-4 py-4 text-gray-600">{user.username}</td>
                     <td className="px-4 py-4 text-gray-600">{user.position}</td>
                     <td className="px-4 py-4 text-gray-600">{user.department}</td>
                     <td className="px-4 py-4">
@@ -375,7 +348,7 @@ export default function UsersPage() {
                     </td>
                     <td className="px-4 py-4 text-center">
                       <button
-                        onClick={() => handleDelete(user.id, user.email)}
+                        onClick={() => handleDelete(user.id, user.name)}
                         className="text-red-600 hover:text-red-800 transition"
                         title="ลบผู้ใช้"
                       >
