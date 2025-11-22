@@ -3,20 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { GripVertical, FileText, Calendar, User, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface Entry {
-  id: string;
-  title: string;
-  category: string;
-  description: string;
-  dateStart: string;
-  dateEnd: string;
-  images: string[];
-  userId?: string;
-}
+import type { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
 
 interface ReportViewProps {
-  entries: Entry[];
+  entries: ReportPdfEntry[];
   user: { name: string; position?: string };
   title: string;
   showUserCol?: boolean;
@@ -32,7 +22,7 @@ export default function ReportView({
   usersMap = {},
   enableDrag = false,
 }: ReportViewProps) {
-  const [items, setItems] = useState<Entry[]>(entries);
+  const [items, setItems] = useState<ReportPdfEntry[]>(entries);
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
 

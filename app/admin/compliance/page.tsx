@@ -7,7 +7,9 @@ import { getUsersCollection, getEntriesCollection, getApprovalsCollection, getAp
 import { useAuth } from '@/context/AuthContext';
 import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download, Printer } from 'lucide-react';
 import ReportView from '@/components/ReportView';
-import { generatePDF, handlePrint } from '@/lib/pdfUtils';
+import ReportPdfDocument, { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
+import { downloadPdf } from '@/lib/downloadPdf';
+import { handlePrint } from '@/lib/pdfUtils';
 
 interface User {
   id: string;
@@ -25,7 +27,7 @@ interface ComplianceUser extends User {
 export default function CompliancePage() {
   const { userData } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<ReportPdfEntry[]>([]);
   const [approvals, setApprovals] = useState<Record<string, { director: boolean; deputy: boolean }>>({});
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [viewUserWork, setViewUserWork] = useState<User | null>(null);
@@ -60,7 +62,7 @@ export default function CompliancePage() {
       const entriesData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as ReportPdfEntry[];
       setEntries(entriesData);
     });
 
@@ -161,7 +163,7 @@ export default function CompliancePage() {
   };
 
   // Prepare data for modal
-  const getModalEntries = () => {
+  const getModalEntries = (): ReportPdfEntry[] => {
     if (!viewUserWork) return [];
     const [year, month] = filterMonth.split('-');
     return entries.filter((e) => {
@@ -172,6 +174,32 @@ export default function CompliancePage() {
         d.getMonth() + 1 === parseInt(month)
       );
     });
+  };
+
+  const handleDownloadUserReport = async () => {
+    if (!viewUserWork) return;
+    const modalEntries = getModalEntries();
+    const exportDate = new Date();
+    const monthLabel = new Date(filterYear, filterMonthNum - 1).toLocaleDateString('th-TH', {
+      month: 'long',
+      year: 'numeric',
+    });
+    const monthSlug = monthLabel.replace(/\s/g, '-');
+
+    await downloadPdf(
+      <ReportPdfDocument
+        entries={modalEntries}
+        user={viewUserWork}
+        title={`รายงานประจำเดือน ${filterMonth}`}
+        subtitle={`ข้อมูล ณ เดือน ${monthLabel}`}
+        generatedAt={exportDate.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })}
+      />,
+      `รายงาน-${viewUserWork.name}-${monthSlug}.pdf`
+    );
   };
 
   return (
@@ -457,13 +485,7 @@ export default function CompliancePage() {
               {getModalEntries().length > 0 && (
                 <div className="flex gap-2 flex-1 print:hidden">
                   <button
-                    onClick={async () => {
-                      if (viewUserWork) {
-                        const userName = viewUserWork.name;
-                        const monthText = new Date(filterYear, filterMonthNum - 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }).replace(/\s/g, '-');
-                        await generatePDF('compliance-report-content', `รายงาน-${userName}-${monthText}`);
-                      }
-                    }}
+                    onClick={handleDownloadUserReport}
                     className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
                   >
                     <Download className="w-4 h-4" /> บันทึก PDF

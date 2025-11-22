@@ -6,7 +6,9 @@ import { db } from '@/lib/firebase';
 import { Users, FileText, Building2, BarChart3, ChevronDown, LucideIcon, Download, Calendar, TrendingUp, CheckCircle2, Printer } from 'lucide-react';
 import { getUsersCollection, getEntriesCollection, getApprovalsCollection, DEPARTMENTS, CATEGORIES } from '@/lib/constants';
 import { motion } from 'framer-motion';
-import { generatePDFLandscape, handlePrint } from '@/lib/pdfUtils';
+import { handlePrint } from '@/lib/pdfUtils';
+import AdminStatsPdfDocument from '@/components/pdf/AdminStatsPdfDocument';
+import { downloadPdf } from '@/lib/downloadPdf';
 
 // --- Types ---
 
@@ -242,13 +244,30 @@ export default function AdminDashboardPage() {
 
   // PDF Export Handlers
   const handleSavePDF = async () => {
-    const dateStr = new Date().toLocaleDateString('th-TH', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }).replace(/\s/g, '-');
-    const periodText = getPeriodText().replace(/\s/g, '-');
-    await generatePDFLandscape('admin-stats-content', `สถิติผลงาน-${periodText}-${dateStr}`);
+    const generatedAt = new Date();
+    const dateStr = generatedAt
+      .toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+      .replace(/\s/g, '-');
+    const periodText = getPeriodText();
+    const periodSlug = periodText.replace(/[\s|]+/g, '-');
+
+    await downloadPdf(
+      <AdminStatsPdfDocument
+        departmentStats={departmentStats}
+        summary={{ totalUsers, totalSubmitted, totalEntries }}
+        periodText={periodText}
+        generatedAt={generatedAt.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })}
+      />,
+      `สถิติผลงาน-${periodSlug}-${dateStr}.pdf`
+    );
   };
 
   // Overall statistics

@@ -8,7 +8,9 @@ import { getEntriesCollection } from '@/lib/constants';
 import ReportView from '@/components/ReportView';
 import { motion } from 'framer-motion';
 import { Printer, Calendar, Filter, FileText, Download } from 'lucide-react';
-import { generatePDF, handlePrint } from '@/lib/pdfUtils';
+import { handlePrint } from '@/lib/pdfUtils';
+import ReportPdfDocument from '@/components/pdf/ReportPdfDocument';
+import { downloadPdf } from '@/lib/downloadPdf';
 
 interface Entry {
   id: string;
@@ -85,14 +87,48 @@ export default function ReportPage() {
     });
   }, [entries, filterDateStart, filterDateEnd]);
 
+  const getFilterSummary = () => {
+    if (filterDateStart && filterDateEnd) {
+      const start = new Date(filterDateStart).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+      const end = new Date(filterDateEnd).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+      return `ช่วงเวลา ${start} - ${end}`;
+    }
+    if (filterDateStart) {
+      const start = new Date(filterDateStart).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+      return `ช่วงเวลา ตั้งแต่ ${start}`;
+    }
+    if (filterDateEnd) {
+      const end = new Date(filterDateEnd).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+      return `ช่วงเวลา ถึง ${end}`;
+    }
+    return 'ช่วงเวลา: ทั้งหมด';
+  };
+
   const handleSavePDF = async () => {
     const userName = userData?.name || 'user';
-    const dateStr = new Date().toLocaleDateString('th-TH', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }).replace(/\s/g, '-');
-    await generatePDF('report-content', `รายงานผลงาน-${userName}-${dateStr}`);
+    const createdDate = new Date();
+    const dateStr = createdDate
+      .toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+      .replace(/\s/g, '-');
+
+    await downloadPdf(
+      <ReportPdfDocument
+        entries={items}
+        user={userData || { name: '' }}
+        title="รายงานสรุปผลงานส่วนบุคคล"
+        subtitle={getFilterSummary()}
+        generatedAt={createdDate.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })}
+      />,
+      `รายงานผลงาน-${userName}-${dateStr}.pdf`
+    );
   };
 
   // --- Skeleton Loader ---
