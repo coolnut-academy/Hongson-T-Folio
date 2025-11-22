@@ -12,30 +12,65 @@ export const isMobileDevice = (): boolean => {
 };
 
 /**
- * Generate and download PDF from HTML element
- * @param elementId - ID of the HTML element to convert to PDF
- * @param filename - Name of the PDF file (without extension)
+ * Core Logic: Efficiently fix unsupported colors (lab, lch, oklch) in the cloned document
  */
-// Helper function to convert any color to RGB
-const convertToRGB = (color: string): string | null => {
-  if (!color || color === 'transparent' || color === 'inherit') return null;
+const fixColorsInClone = (clonedDoc: Document) => {
+  const elements = clonedDoc.querySelectorAll('*');
   
-  // If already in rgb/rgba format, return as is
-  if (color.startsWith('rgb')) return color;
-  
-  // If it's a hex color, return as is (html2canvas supports hex)
-  if (color.startsWith('#')) return color;
-  
-  // Create a temporary element to let browser convert the color
-  const temp = document.createElement('div');
-  temp.style.color = color;
-  document.body.appendChild(temp);
-  const computed = window.getComputedStyle(temp).color;
-  document.body.removeChild(temp);
-  
-  return computed;
+  // Create a single reuseable element for color conversion
+  // This avoids creating/destroying thousands of DOM elements
+  const tempConverter = document.createElement('div');
+  tempConverter.style.display = 'none';
+  document.body.appendChild(tempConverter);
+
+  const colorProperties = [
+    'color', 'backgroundColor', 'borderColor', 
+    'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+    'outlineColor', 'textDecorationColor', 'fill', 'stroke'
+  ];
+
+  try {
+    elements.forEach((el) => {
+      if (el instanceof HTMLElement || el instanceof SVGElement) {
+        const style = window.getComputedStyle(el);
+        
+        colorProperties.forEach(prop => {
+          const value = style.getPropertyValue(prop);
+          
+          // Performance Check: Only process if strictly necessary
+          // Ignore empty, transparent, inherit, or standard formats (hex, rgb, hsl)
+          if (!value || value === 'transparent' || value === 'inherit') return;
+          if (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl')) return;
+          
+          // If we detect modern color formats (lab, lch, oklab, oklch)
+          if (value.includes('lab') || value.includes('lch') || value.includes('ok')) {
+            // Use the shared converter
+            tempConverter.style.color = value;
+            // Browser will automatically compute this to rgb(...)
+            const computedRGB = window.getComputedStyle(tempConverter).color;
+            
+            if (computedRGB && computedRGB !== value) {
+              // Force override the style on the element
+              // @ts-expect-error - Dynamic property assignment needed for color conversion
+              el.style[prop] = computedRGB;
+            }
+          }
+        });
+      }
+    });
+  } catch (e) {
+    console.warn('Color fix warning:', e);
+  } finally {
+    // Clean up the converter element
+    if (document.body.contains(tempConverter)) {
+      document.body.removeChild(tempConverter);
+    }
+  }
 };
 
+/**
+ * Generate and download PDF from HTML element
+ */
 export const generatePDF = async (elementId: string, filename: string = 'report'): Promise<void> => {
   const element = document.getElementById(elementId);
   
@@ -57,33 +92,7 @@ export const generatePDF = async (elementId: string, filename: string = 'report'
       allowTaint: true,
       backgroundColor: '#ffffff',
       onclone: (clonedDoc: Document) => {
-        // Fix for unsupported color functions (lab, oklab, etc.)
-        const elements = clonedDoc.querySelectorAll('*');
-        elements.forEach((el: Element) => {
-          if (el instanceof HTMLElement) {
-            // Get computed style from the original document
-            const originalEl = document.querySelector(`[data-pdf-id="${el.getAttribute('data-pdf-id')}"]`) || el;
-            const style = window.getComputedStyle(originalEl);
-            
-            // Force convert all color properties
-            const colorProperties = [
-              'color', 'backgroundColor', 'borderColor', 
-              'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
-              'outlineColor', 'textDecorationColor', 'fill', 'stroke'
-            ];
-            
-            colorProperties.forEach(prop => {
-              const value = style.getPropertyValue(prop);
-              if (value && value !== 'transparent' && value !== 'inherit') {
-                // Convert to RGB format that html2canvas understands
-                const rgbValue = convertToRGB(value);
-                if (rgbValue) {
-                  (el.style as any)[prop] = rgbValue;
-                }
-              }
-            });
-          }
-        });
+        fixColorsInClone(clonedDoc);
       }
     },
     jsPDF: { 
@@ -94,47 +103,11 @@ export const generatePDF = async (elementId: string, filename: string = 'report'
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   } as const;
 
-  try {
-    // Show loading indicator
-    const loadingToast = document.createElement('div');
-    loadingToast.id = 'pdf-loading-toast';
-    loadingToast.className = 'fixed top-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] flex items-center gap-3';
-    loadingToast.innerHTML = `
-      <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-      <span>กำลังสร้างไฟล์ PDF...</span>
-    `;
-    document.body.appendChild(loadingToast);
-
-    await html2pdf().set(opt).from(element).save();
-
-    // Remove loading and show success
-    loadingToast.remove();
-    
-    const successToast = document.createElement('div');
-    successToast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] flex items-center gap-3';
-    successToast.innerHTML = `
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-      </svg>
-      <span>บันทึกไฟล์ PDF สำเร็จ!</span>
-    `;
-    document.body.appendChild(successToast);
-    
-    setTimeout(() => successToast.remove(), 3000);
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    
-    const errorToast = document.createElement('div');
-    errorToast.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-[9999]';
-    errorToast.textContent = 'เกิดข้อผิดพลาดในการบันทึก PDF';
-    document.body.appendChild(errorToast);
-    
-    setTimeout(() => errorToast.remove(), 3000);
-  }
+  await processPDFGeneration(element, opt);
 };
 
 /**
- * Generate and download PDF with landscape orientation (for wide reports)
+ * Generate and download PDF with landscape orientation
  */
 export const generatePDFLandscape = async (elementId: string, filename: string = 'report'): Promise<void> => {
   const element = document.getElementById(elementId);
@@ -157,45 +130,29 @@ export const generatePDFLandscape = async (elementId: string, filename: string =
       allowTaint: true,
       backgroundColor: '#ffffff',
       onclone: (clonedDoc: Document) => {
-        // Fix for unsupported color functions (lab, oklab, etc.)
-        const elements = clonedDoc.querySelectorAll('*');
-        elements.forEach((el: Element) => {
-          if (el instanceof HTMLElement) {
-            // Get computed style from the original document
-            const originalEl = document.querySelector(`[data-pdf-id="${el.getAttribute('data-pdf-id')}"]`) || el;
-            const style = window.getComputedStyle(originalEl);
-            
-            // Force convert all color properties
-            const colorProperties = [
-              'color', 'backgroundColor', 'borderColor', 
-              'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
-              'outlineColor', 'textDecorationColor', 'fill', 'stroke'
-            ];
-            
-            colorProperties.forEach(prop => {
-              const value = style.getPropertyValue(prop);
-              if (value && value !== 'transparent' && value !== 'inherit') {
-                // Convert to RGB format that html2canvas understands
-                const rgbValue = convertToRGB(value);
-                if (rgbValue) {
-                  (el.style as any)[prop] = rgbValue;
-                }
-              }
-            });
-          }
-        });
+        fixColorsInClone(clonedDoc);
       }
     },
     jsPDF: { 
       unit: 'mm', 
       format: 'a4', 
-      orientation: 'landscape' // Wide format for statistics
+      orientation: 'landscape'
     },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   } as const;
 
+  await processPDFGeneration(element, opt);
+};
+
+/**
+ * Shared logic for showing toasts and executing html2pdf
+ */
+const processPDFGeneration = async (element: HTMLElement, opt: Record<string, unknown>) => {
+  let loadingToast: HTMLDivElement | null = null;
+
   try {
-    const loadingToast = document.createElement('div');
+    // Show loading indicator
+    loadingToast = document.createElement('div');
     loadingToast.id = 'pdf-loading-toast';
     loadingToast.className = 'fixed top-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] flex items-center gap-3';
     loadingToast.innerHTML = `
@@ -204,9 +161,11 @@ export const generatePDFLandscape = async (elementId: string, filename: string =
     `;
     document.body.appendChild(loadingToast);
 
+    // Execute PDF generation
     await html2pdf().set(opt).from(element).save();
 
-    loadingToast.remove();
+    // Success handling
+    if (loadingToast) loadingToast.remove();
     
     const successToast = document.createElement('div');
     successToast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-[9999] flex items-center gap-3';
@@ -219,12 +178,15 @@ export const generatePDFLandscape = async (elementId: string, filename: string =
     document.body.appendChild(successToast);
     
     setTimeout(() => successToast.remove(), 3000);
+
   } catch (error) {
     console.error('Error generating PDF:', error);
     
+    if (loadingToast) loadingToast.remove();
+    
     const errorToast = document.createElement('div');
     errorToast.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-[9999]';
-    errorToast.textContent = 'เกิดข้อผิดพลาดในการบันทึก PDF';
+    errorToast.textContent = 'เกิดข้อผิดพลาดในการบันทึก PDF (กรุณาลองใหม่อีกครั้ง)';
     document.body.appendChild(errorToast);
     
     setTimeout(() => errorToast.remove(), 3000);
@@ -242,4 +204,3 @@ export const handlePrint = (): void => {
   
   window.print();
 };
-
