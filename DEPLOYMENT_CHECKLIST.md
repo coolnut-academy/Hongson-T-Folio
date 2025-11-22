@@ -95,7 +95,7 @@ service cloud.firestore {
 
 ### 3. Add Entry (`/dashboard/add`)
 - [ ] Form validation ทำงาน
-- [ ] อัปโหลดรูปภาพได้ (สูงสุด 4 รูป)
+- [ ] อัปโหลดรูปภาพได้ (สูงสุด 5 รูป)
 - [ ] บันทึกข้อมูลลง Firestore ได้
 - [ ] รูปภาพอัปโหลดไป Firebase Storage ได้
 

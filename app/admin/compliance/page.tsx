@@ -5,11 +5,11 @@ import { collection, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase';
 import { getUsersCollection, getEntriesCollection, getApprovalsCollection, getApprovalDocId, DEPARTMENTS } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
-import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download, Printer } from 'lucide-react';
+import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download } from 'lucide-react';
 import ReportView from '@/components/ReportView';
 import ReportPdfDocument, { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
-import { handlePrint, prepareEntriesForPdf } from '@/lib/pdfUtils';
+import { prepareEntriesForPdf } from '@/lib/pdfUtils';
 
 interface User {
   id: string;
@@ -485,18 +485,12 @@ export default function CompliancePage() {
             <div className="p-4 border-t bg-gray-50 flex flex-col sm:flex-row justify-between gap-3">
               {/* Export Buttons */}
               {getModalEntries().length > 0 && (
-                <div className="flex gap-2 flex-1 print:hidden">
+                <div className="print:hidden">
                   <button
                     onClick={handleDownloadUserReport}
-                    className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
                   >
                     <Download className="w-4 h-4" /> บันทึก PDF
-                  </button>
-                  <button
-                    onClick={handlePrint}
-                    className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
-                  >
-                    <Printer className="w-4 h-4" /> พิมพ์รายงาน
                   </button>
                 </div>
               )}

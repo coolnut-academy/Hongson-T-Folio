@@ -1,9 +1,12 @@
 'use client';
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useRef } from 'react';
 import { GripVertical, FileText, Calendar, User, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
+
+const MAX_VISIBLE_IMAGES = 5;
 
 interface ReportViewProps {
   entries: ReportPdfEntry[];
@@ -75,6 +78,7 @@ export default function ReportView({
             box-shadow: none !important;
             border: none !important;
             padding: 0 !important;
+            padding-top: 4 rem !important;
             width: 100% !important;
             min-height: auto !important;
           }
@@ -102,6 +106,20 @@ export default function ReportView({
           }
           .report-content-wrapper {
             padding-top: 1.25rem;
+          }
+          .print-featured-image-container {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: center;
+            page-break-inside: avoid;
+          }
+          .print-featured-image {
+            width: 80%;
+            max-height: 8cm;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            object-fit: cover;
+            page-break-inside: avoid;
           }
           /* Ensure images print but don't waste ink on backgrounds */
           img {
@@ -234,31 +252,52 @@ export default function ReportView({
 
                     {/* Evidence Images (Visible in Print now!) */}
                     {entry.images && entry.images.length > 0 && (() => {
-                      const displayImages = entry.images.slice(0, 4);
-                      const remainingImages = entry.images.length - displayImages.length;
+                      const limitedImages = entry.images.slice(0, MAX_VISIBLE_IMAGES);
+                      const hasFeaturedImage = limitedImages.length === MAX_VISIBLE_IMAGES;
+                      const gridImages = hasFeaturedImage ? limitedImages.slice(0, 4) : limitedImages;
+                      const featuredImage = hasFeaturedImage ? limitedImages[4] : null;
+                      const remainingImages = entry.images.length - limitedImages.length;
 
                       return (
                         <div className="mt-3">
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
                             <ImageIcon className="w-3 h-3" /> หลักฐานแนบ ({entry.images.length})
                           </p>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-2 print:gap-6 print-image-grid">
-                            {displayImages.map((img, i) => (
-                              <div
-                                key={i}
-                                className="relative aspect-square sm:aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 print:border-slate-300 print-image-cell"
-                              >
-                                <img
-                                  src={img}
-                                  className="w-full h-full object-cover"
-                                  alt={`หลักฐาน ${i + 1}`}
-                                />
+
+                          {gridImages.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-2 print:gap-6 print-image-grid">
+                              {gridImages.map((img, i) => (
+                                <div
+                                  key={i}
+                                  className="relative aspect-square sm:aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 print:border-slate-300 print-image-cell"
+                                >
+                                  <img
+                                    src={img}
+                                    className="w-full h-full object-cover"
+                                    alt={`หลักฐาน ${i + 1}`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {featuredImage && (
+                            <div className="mt-4 flex justify-center print-featured-image-container">
+                              <div className="w-full sm:w-4/5 lg:w-2/3">
+                                <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-100 print:border-slate-300 shadow-sm">
+                                  <img
+                                    src={featuredImage}
+                                    className="w-full h-full object-cover print-featured-image"
+                                    alt="หลักฐานเพิ่มเติม"
+                                  />
+                                </div>
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          )}
+
                           {remainingImages > 0 && (
                             <p className="text-[10px] text-slate-400 mt-2 italic print:text-[9px]">
-                              * แสดงเฉพาะ 4 ภาพแรก ข้อมูลในระบบทั้งหมด {entry.images.length} ภาพ
+                              * แสดงเฉพาะ 5 ภาพแรก ข้อมูลในระบบทั้งหมด {entry.images.length} ภาพ
                             </p>
                           )}
                         </div>

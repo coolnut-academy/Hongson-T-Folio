@@ -21,6 +21,8 @@ import {
   ArrowLeft 
 } from 'lucide-react';
 
+const MAX_IMAGES = 5;
+
 export default function AddEntryPage() {
   const { userData } = useAuth();
   const router = useRouter();
@@ -49,8 +51,13 @@ export default function AddEntryPage() {
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
-    if (imageFiles.length + files.length > 4) {
-      alert('อัปโหลดได้สูงสุด 4 รูป');
+    if (files.length > MAX_IMAGES) {
+      alert(`เลือกได้สูงสุด ${MAX_IMAGES} รูปต่อครั้ง`);
+      return;
+    }
+
+    if (imageFiles.length + files.length > MAX_IMAGES) {
+      alert(`อัปโหลดได้สูงสุด ${MAX_IMAGES} รูป`);
       return;
     }
 
@@ -267,7 +274,7 @@ export default function AddEntryPage() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   หลักฐานรูปภาพ
                 </label>
-                <p className="text-xs text-slate-400 mt-1">สูงสุด 4 รูป (แนะนำรูปแนวนอน)</p>
+                <p className="text-xs text-slate-400 mt-1">สูงสุด {MAX_IMAGES} รูป (แนะนำรูปแนวนอน)</p>
               </div>
 
               {/* Upload Dropzone Style */}

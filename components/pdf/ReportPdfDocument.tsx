@@ -129,10 +129,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: 6,
     marginTop: 6,
+  },
+  imageRow: {
+    flexDirection: 'row',
+    gap: 6,
   },
   imageSection: {
     marginTop: 10,
@@ -179,6 +182,14 @@ const formatDateRange = (start: string, end?: string) => {
   if (!end || end === start) return startText;
   const endText = formatter.format(new Date(end));
   return `${startText} - ${endText}`;
+};
+
+const chunkArray = <T,>(items: T[], chunkSize: number): T[][] => {
+  const result: T[][] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    result.push(items.slice(i, i + chunkSize));
+  }
+  return result;
 };
 
 const ReportPdfDocument = ({
@@ -235,10 +246,14 @@ const ReportPdfDocument = ({
               <View style={styles.imageSection}>
                 <Text style={styles.imageLabel}>ภาพประกอบ ({entry.images.length})</Text>
                 <View style={styles.imageGrid}>
-                  {entry.images.map((imageUrl, imageIndex) => (
-                    // @react-pdf/renderer images render into PDFs, so alt text is not supported.
-                    // eslint-disable-next-line jsx-a11y/alt-text
-                    <Image key={`${entry.id}-${imageIndex}`} src={imageUrl} style={styles.image} />
+                  {chunkArray(entry.images, 5).map((row, rowIndex) => (
+                    <View key={`${entry.id}-row-${rowIndex}`} style={styles.imageRow}>
+                      {row.map((imageUrl, imageIndex) => (
+                        // @react-pdf/renderer images render into PDFs, so alt text is not supported.
+                        // eslint-disable-next-line jsx-a11y/alt-text
+                        <Image key={`${entry.id}-${rowIndex}-${imageIndex}`} src={imageUrl} style={styles.image} />
+                      ))}
+                    </View>
                   ))}
                 </View>
               </View>
