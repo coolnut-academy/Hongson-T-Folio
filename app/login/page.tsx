@@ -6,23 +6,23 @@ import { User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn, userData, user } = useAuth();
+  const { signIn, userData } = useAuth();
   const router = useRouter();
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user && userData) {
+    if (userData) {
       if (userData.role === 'admin' || userData.role === 'director' || userData.role === 'deputy') {
         router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');
       }
     }
-  }, [user, userData, router]);
+  }, [userData, router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,22 +30,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      await signIn(username, password);
       // The redirect will happen via useEffect when userData updates
     } catch (err: any) {
       console.error('Login error:', err);
-      let errorMessage = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
-      
-      if (err.code === 'auth/invalid-email') {
-        errorMessage = 'อีเมลไม่ถูกต้อง';
-      } else if (err.code === 'auth/user-not-found') {
-        errorMessage = 'ไม่พบผู้ใช้';
-      } else if (err.code === 'auth/wrong-password') {
-        errorMessage = 'รหัสผ่านไม่ถูกต้อง';
-      } else if (err.code === 'auth/invalid-credential') {
-        errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
-      }
-      
+      const errorMessage = err.message || 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง';
       setError(errorMessage);
       setLoading(false);
     }
@@ -63,9 +52,9 @@ export default function LoginPage() {
             <div className="relative">
               <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 placeholder="Username"
                 required

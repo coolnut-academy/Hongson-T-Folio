@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getEntriesCollection, getApprovalsCollection, getApprovalDocId } from '@/lib/constants';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
@@ -31,77 +32,105 @@ interface MonthlyStatus {
   entryCount: number;
 }
 
-const monthNames = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-];
+// Removed monthNames - using toLocaleDateString instead
 
 export default function DashboardPage() {
   const { userData } = useAuth();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [monthlyStatus, setMonthlyStatus] = useState<MonthlyStatus[]>([]);
+  const [approvals, setApprovals] = useState<Record<string, { deputy: boolean; director: boolean }>>({});
+
+  // Moved to useEffect above
 
   useEffect(() => {
-    if (userData) {
-      fetchEntries();
-    }
-  }, [userData]);
-
-  const fetchEntries = async () => {
     if (!userData) return;
 
-    try {
-      const entriesRef = collection(db, 'entries');
-      const q = query(
-        entriesRef,
-        where('userId', '==', userData.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      
+    const userId = userData.id;
+    const entriesPath = getEntriesCollection().split('/');
+    const entriesRef = collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]);
+    
+    // Use onSnapshot for real-time updates
+    const unsubscribeEntries = onSnapshot(entriesRef, (snapshot) => {
       const entriesData: Entry[] = [];
-      querySnapshot.forEach((doc) => {
-        entriesData.push({
-          id: doc.id,
-          ...doc.data(),
-        } as Entry);
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        // Filter by userId
+        if (data.userId === userId) {
+          entriesData.push({
+            id: doc.id,
+            ...data,
+          } as Entry);
+        }
+      });
+      
+      // Sort by dateEnd or dateStart
+      entriesData.sort((a, b) => {
+        const dateA = new Date(a.dateEnd || a.dateStart).getTime();
+        const dateB = new Date(b.dateEnd || b.dateStart).getTime();
+        return dateB - dateA;
       });
 
       setEntries(entriesData);
-      calculateMonthlyStatus(entriesData);
-    } catch (error) {
-      console.error('Error fetching entries:', error);
-    } finally {
       setLoading(false);
+    });
+
+    // Fetch approvals
+    const approvalsPath = getApprovalsCollection().split('/');
+    const approvalsRef = collection(db, approvalsPath[0], approvalsPath[1], approvalsPath[2], approvalsPath[3], approvalsPath[4]);
+    
+    const unsubscribeApprovals = onSnapshot(approvalsRef, (snapshot) => {
+      const approvalsMap: Record<string, { deputy: boolean; director: boolean }> = {};
+      snapshot.forEach((doc) => {
+        if (doc.id.startsWith(userId)) {
+          approvalsMap[doc.id] = doc.data() as { deputy: boolean; director: boolean };
+        }
+      });
+      // Store approvals for use in entry cards
+      setApprovals(approvalsMap);
+    });
+
+    return () => {
+      unsubscribeEntries();
+      unsubscribeApprovals();
+    };
+  }, [userData]);
+
+  // Recalculate monthly status when entries or approvals change
+  useEffect(() => {
+    if (entries.length > 0 || Object.keys(approvals).length > 0) {
+      calculateMonthlyStatus(entries);
     }
-  };
+  }, [entries, approvals, userData]);
 
   const calculateMonthlyStatus = (entriesData: Entry[]) => {
-    const currentYear = new Date().getFullYear();
+    if (!userData) return;
+    
+    const today = new Date();
     const status: MonthlyStatus[] = [];
+    const userId = userData.id;
 
-    for (let i = 0; i < 12; i++) {
-      const monthStart = new Date(currentYear, i, 1);
-      const monthEnd = new Date(currentYear, i + 1, 0);
+    // Show last 6 months
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
       
       const monthEntries = entriesData.filter((entry) => {
         const entryDate = entry.dateStart ? new Date(entry.dateStart) : null;
         if (!entryDate) return false;
-        return entryDate >= monthStart && entryDate <= monthEnd;
+        return entryDate.getFullYear() === year && entryDate.getMonth() + 1 === month;
       });
 
-      // Check if all entries in this month are approved
-      const allDeputyApproved = monthEntries.length > 0 && 
-        monthEntries.every((e) => e.approved?.deputy === true);
-      const allDirectorApproved = monthEntries.length > 0 && 
-        monthEntries.every((e) => e.approved?.director === true);
+      // Get approval status for this month
+      const approvalKey = getApprovalDocId(userId, year, month);
+      const approval = approvals[approvalKey] || { deputy: false, director: false };
 
       status.push({
-        month: monthNames[i],
-        monthNum: i + 1,
-        deputyApproved: allDeputyApproved,
-        directorApproved: allDirectorApproved,
+        month: d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }),
+        monthNum: month,
+        deputyApproved: approval.deputy,
+        directorApproved: approval.director,
         entryCount: monthEntries.length,
       });
     }
@@ -197,7 +226,14 @@ export default function DashboardPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {entries.map((entry) => {
-                const isFullyApproved = entry.approved?.deputy === true && entry.approved?.director === true;
+                // Get approval status for entry's month
+                const entryDate = new Date(entry.dateStart);
+                const year = entryDate.getFullYear();
+                const month = entryDate.getMonth() + 1;
+                const userId = userData?.id || '';
+                const approvalKey = getApprovalDocId(userId, year, month);
+                const approval = approvals[approvalKey] || { deputy: false, director: false };
+                const isFullyApproved = approval.deputy && approval.director;
                 const firstImage = entry.images && entry.images.length > 0 ? entry.images[0] : null;
 
                 return (
@@ -232,31 +268,31 @@ export default function DashboardPage() {
                         <AlertCircle className="w-3 h-3" /> {formatDate(entry.dateStart)}
                       </p>
                       <div className="mt-2 flex justify-between items-center text-xs text-gray-400 border-t pt-2">
-                        <span className="font-medium">การตรวจสอบ:</span>
+                        <span className="font-medium">สถานะประจำเดือน:</span>
                         <div className="flex gap-2">
                           <span
                             className={`flex items-center gap-0.5 ${
-                              entry.approved?.deputy ? 'text-green-600 font-bold' : ''
+                              approval.deputy ? 'text-green-600 font-bold' : ''
                             }`}
                           >
-                            {entry.approved?.deputy ? (
+                            {approval.deputy ? (
                               <CheckCircle className="w-3 h-3" />
                             ) : (
                               <div className="w-3 h-3 border rounded-full" />
                             )}{' '}
-                            รองฯ
+                            รองฯ{approval.deputy ? '✓' : '-'}
                           </span>
                           <span
                             className={`flex items-center gap-0.5 ${
-                              entry.approved?.director ? 'text-green-600 font-bold' : ''
+                              approval.director ? 'text-green-600 font-bold' : ''
                             }`}
                           >
-                            {entry.approved?.director ? (
+                            {approval.director ? (
                               <CheckCircle className="w-3 h-3" />
                             ) : (
                               <div className="w-3 h-3 border rounded-full" />
                             )}{' '}
-                            ผอ.
+                            ผอ.{approval.director ? '✓' : '-'}
                           </span>
                         </div>
                       </div>

@@ -6,17 +6,10 @@ import { useAuth } from '@/context/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
+import { getEntriesCollection, APP_ID } from '@/lib/constants';
 import { Upload, X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-
-const categories = [
-  'งานสอน',
-  'งานวิจัย',
-  'งานบริการวิชาการ',
-  'งานบริหาร',
-  'งานพัฒนาตนเอง',
-  'อื่นๆ',
-];
+import { CATEGORIES } from '@/lib/constants';
 
 export default function AddEntryPage() {
   const { userData } = useAuth();
@@ -124,25 +117,23 @@ export default function AddEntryPage() {
 
     try {
       // Upload images to Firebase Storage
-      const imageUrls = await uploadImages(userData.uid);
+      const userId = userData.id || userData.uid || '';
+      const imageUrls = await uploadImages(userId);
 
-      // Save entry to Firestore
+      // Save entry to Firestore using new path structure
       const entryData = {
-        userId: userData.uid,
+        userId: userData.id, // Use username as userId
         category: formData.category,
         title: formData.title,
         description: formData.description,
         dateStart: formData.dateStart,
         dateEnd: formData.dateEnd || formData.dateStart,
         images: imageUrls,
-        createdAt: serverTimestamp(),
-        approved: {
-          deputy: false,
-          director: false,
-        },
+        timestamp: Date.now(), // Use timestamp instead of serverTimestamp for compatibility
       };
 
-      await addDoc(collection(db, 'entries'), entryData);
+      const entriesPath = getEntriesCollection().split('/');
+      await addDoc(collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]), entryData);
 
       // Clean up preview URLs
       imagePreviews.forEach((url) => URL.revokeObjectURL(url));
@@ -176,21 +167,21 @@ export default function AddEntryPage() {
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
               หมวดหมู่ <span className="text-red-500">*</span>
             </label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleInputChange}
-              required
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            >
-              <option value="">เลือกหมวดหมู่</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                required
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="">เลือกหมวดหมู่</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
           </div>
 
           {/* Title */}

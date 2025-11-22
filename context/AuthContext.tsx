@@ -3,19 +3,21 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { 
   User as FirebaseUser,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
+  signInAnonymously,
   signOut as firebaseSignOut
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { getUsersCollection, APP_ID } from '@/lib/constants';
 
 export type UserRole = 'admin' | 'director' | 'deputy' | 'user';
 
 export interface UserData {
-  uid: string;
-  email: string | null;
+  id: string; // username (doc ID)
+  uid?: string; // Firebase Auth UID (if using Firebase Auth)
+  username: string;
+  password?: string; // stored for reference, not used for auth
   role: UserRole;
   name: string;
   position: string;
@@ -26,7 +28,7 @@ interface AuthContextType {
   user: FirebaseUser | null;
   userData: UserData | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -39,63 +41,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      
-      if (firebaseUser) {
-        // Fetch user data from Firestore
-        try {
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          
-          if (userDocSnap.exists()) {
-            const data = userDocSnap.data();
-            setUserData({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              role: (data.role as UserRole) || 'user',
-              name: data.name || '',
-              position: data.position || '',
-              department: data.department || '',
-            });
-          } else {
-            // If user document doesn't exist, set default values
-            setUserData({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              role: 'user',
-              name: '',
-              position: '',
-              department: '',
-            });
-          }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          setUserData({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            role: 'user',
-            name: '',
-            position: '',
-            department: '',
-          });
-        }
-      } else {
-        setUserData(null);
-      }
-      
+    // Listen to users collection for username/password auth
+    const usersPath = getUsersCollection().split('/');
+    const usersRef = collection(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4]);
+    
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      // Users are loaded, but we don't auto-login
+      // Login happens via signIn function
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+  const signIn = async (username: string, password: string) => {
+    try {
+      // Fetch user from Firestore by username
+      const usersPath = getUsersCollection().split('/');
+      const userDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], username);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (!userDocSnap.exists()) {
+        throw new Error('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
+      }
+      
+      const userData = userDocSnap.data();
+      
+      // Check password (plain text comparison for prototype)
+      if (userData.password !== password) {
+        throw new Error('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
+      }
+      
+      // Set user data (no Firebase Auth needed for this prototype)
+      setUserData({
+        id: username,
+        username: userData.username || username,
+        password: userData.password,
+        role: (userData.role as UserRole) || 'user',
+        name: userData.name || '',
+        position: userData.position || '',
+        department: userData.department || '',
+      });
+      
+      // Optionally sign in anonymously to Firebase Auth for other features
+      // await signInAnonymously(auth);
+    } catch (error: any) {
+      throw error;
+    }
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      // Ignore auth errors if not using Firebase Auth
+    }
     setUserData(null);
     router.push('/login');
   };
