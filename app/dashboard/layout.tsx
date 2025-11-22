@@ -84,12 +84,12 @@ export default function DashboardLayout({
             
             {/* Logo Area */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-green-500/20 p-1">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden">
                 <Image 
                   src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
                   alt="Hongson Logo" 
-                  width={32}
-                  height={32}
+                  width={48}
+                  height={48}
                   className="object-contain"
                 />
               </div>

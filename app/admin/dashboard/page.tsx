@@ -50,14 +50,14 @@ interface StatCardProps {
 // --- Components ---
 
 const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }: StatCardProps) => (
-  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-start justify-between group hover:shadow-md transition-all">
-    <div>
-      <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
-      <h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3>
-      <p className={`text-xs font-medium mt-2 ${colorClass.text}`}>{subtitle}</p>
+  <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-100 flex items-start justify-between group hover:shadow-md transition-all">
+    <div className="flex-1 min-w-0">
+      <p className="text-slate-500 text-xs sm:text-sm font-medium mb-1">{title}</p>
+      <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight truncate">{value}</h3>
+      <p className={`text-[10px] sm:text-xs font-medium mt-1 sm:mt-2 ${colorClass.text}`}>{subtitle}</p>
     </div>
-    <div className={`p-3 rounded-2xl ${colorClass.bg}`}>
-      <Icon className={`w-6 h-6 ${colorClass.icon}`} />
+    <div className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl flex-shrink-0 ${colorClass.bg}`}>
+      <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${colorClass.icon}`} />
     </div>
   </div>
 );
@@ -133,7 +133,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
         
         {/* Header */}
         <motion.div 
@@ -141,16 +141,16 @@ export default function AdminDashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-1"
         >
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">ภาพรวมผู้บริหาร</h1>
-          <p className="text-slate-500 text-sm">ติดตามสถานะการส่งงานและประเมินผลบุคลากร</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">ภาพรวมผู้บริหาร</h1>
+          <p className="text-slate-500 text-xs sm:text-sm">ติดตามสถานะการส่งงานและประเมินผลบุคลากร</p>
         </motion.div>
 
-        {/* Stats Cards Grid */}
+        {/* Stats Cards Grid - Mobile Optimized */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
         >
           <StatCard 
             title="ผลงานรวม (ที่เลือก)" 
@@ -180,48 +180,50 @@ export default function AdminDashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 items-end"
+          className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4"
         >
-          <div className="w-full md:flex-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Building2 className="w-3 h-3" /> กรองตามกลุ่มสาระฯ
-            </label>
-            <div className="relative">
-              <select
-                value={selectedDepartment}
-                onChange={(e) => {
-                  setSelectedDepartment(e.target.value);
-                  setSelectedUser('All');
-                }}
-                className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all appearance-none cursor-pointer text-slate-700 font-medium"
-              >
-                <option value="All">แสดงทุกกลุ่มสาระฯ</option>
-                {DEPARTMENTS.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Building2 className="w-3 h-3" /> กลุ่มสาระฯ
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => {
+                    setSelectedDepartment(e.target.value);
+                    setSelectedUser('All');
+                  }}
+                  className="w-full pl-4 pr-10 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all appearance-none cursor-pointer text-slate-700 font-medium"
+                >
+                  <option value="All">แสดงทุกกลุ่มสาระฯ</option>
+                  {DEPARTMENTS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
             </div>
-          </div>
 
-          <div className="w-full md:flex-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Users className="w-3 h-3" /> กรองตามรายบุคคล
-            </label>
-            <div className="relative">
-              <select
-                value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
-                className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all appearance-none cursor-pointer text-slate-700 font-medium"
-              >
-                <option value="All">
-                  {selectedDepartment === 'All' ? 'บุคลากรทั้งหมด' : `ทุกคนใน ${selectedDepartment}`}
-                </option>
-                {filteredUsers.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Users className="w-3 h-3" /> รายบุคคล
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedUser}
+                  onChange={(e) => setSelectedUser(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all appearance-none cursor-pointer text-slate-700 font-medium"
+                >
+                  <option value="All">
+                    {selectedDepartment === 'All' ? 'บุคลากรทั้งหมด' : `ทุกคนใน ${selectedDepartment}`}
+                  </option>
+                  {filteredUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
             </div>
           </div>
         </motion.div>

@@ -224,7 +224,79 @@ export default function CompliancePage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Mobile Cards View */}
+      <div className="lg:hidden space-y-3">
+        <div className="flex items-center justify-between px-2 mb-2">
+          <button onClick={toggleSelectAll} className="text-sm flex items-center gap-2 text-gray-600 hover:text-gray-900">
+            {selectedUsers.length === complianceList.length && complianceList.length > 0 ? (
+              <CheckSquare className="w-4 h-4 text-green-600" />
+            ) : (
+              <Square className="w-4 h-4" />
+            )}
+            <span>{selectedUsers.length === complianceList.length && complianceList.length > 0 ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมด'}</span>
+          </button>
+        </div>
+        
+        {complianceList.map((u) => (
+          <div
+            key={u.id}
+            className={`rounded-xl shadow border p-4 ${selectedUsers.includes(u.id) ? 'bg-green-50 border-green-200' : !u.hasSubmitted ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => toggleSelectUser(u.id)}>
+                    {selectedUsers.includes(u.id) ? (
+                      <CheckSquare className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    )}
+                  </button>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-sm">{u.name}</h3>
+                    {!u.hasSubmitted && (
+                      <span className="inline-block mt-1 text-red-600 text-[10px] border border-red-200 bg-white px-1.5 py-0.5 rounded">
+                        ยังไม่ส่งงาน!
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewUserWork(u)}
+                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition flex-shrink-0"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-sm mb-3">
+              <div className="flex justify-between">
+                <span className="text-gray-500">กลุ่มสาระ:</span>
+                <span className="text-gray-900 font-medium text-right text-xs">{u.department}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">ส่งงาน:</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.hasSubmitted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {u.submitCount} รายการ
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-3 border-t border-gray-200">
+              <div className={`flex-1 py-2 rounded-lg text-center text-xs font-medium border ${u.approval.deputy ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                รองฯ {u.approval.deputy && '✓'}
+              </div>
+              <div className={`flex-1 py-2 rounded-lg text-center text-xs font-medium border ${u.approval.director ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                ผอ. {u.approval.director && '✓'}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

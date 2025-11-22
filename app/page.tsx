@@ -100,12 +100,12 @@ export default function Home() {
                   }}
                   className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full blur-xl opacity-30"
                 />
-                <div className="relative bg-white p-3 rounded-2xl shadow-lg">
+                <div className="relative w-20 h-20 rounded-full flex items-center justify-center overflow-hidden">
                   <Image 
                     src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
                     alt="Hongson Logo" 
-                    width={64}
-                    height={64}
+                    width={80}
+                    height={80}
                     className="object-contain"
                   />
                 </div>

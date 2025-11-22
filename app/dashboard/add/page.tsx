@@ -131,31 +131,31 @@ export default function AddEntryPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 font-sans">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Header Section */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">เพิ่มผลงานใหม่</h1>
-            <p className="text-slate-500 mt-1 text-sm">บันทึกข้อมูลการปฏิบัติงานเพื่อเก็บเป็นหลักฐาน</p>
+        {/* Header Section - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">เพิ่มผลงานใหม่</h1>
+            <p className="text-slate-500 mt-1 text-xs sm:text-sm">บันทึกข้อมูลการปฏิบัติงานเพื่อเก็บเป็นหลักฐาน</p>
           </div>
           <button
             onClick={() => router.back()}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 text-slate-600 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-green-600 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 text-slate-600 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-green-600 transition-colors text-sm font-medium w-full sm:w-auto justify-center"
           >
             <ArrowLeft className="w-4 h-4" /> ย้อนกลับ
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-8">
           
           {/* 📝 Left Column: Input Fields */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-100 space-y-4 sm:space-y-6">
               
               {/* Category Selection */}
               <div className="space-y-2">
@@ -203,7 +203,7 @@ export default function AddEntryPage() {
               </div>
 
               {/* Date Range Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <label htmlFor="dateStart" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
                     วันที่เริ่มต้น <span className="text-rose-500">*</span>
@@ -261,8 +261,8 @@ export default function AddEntryPage() {
           </div>
 
           {/* 🖼️ Right Column: Image Management */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-full flex flex-col">
+          <div className="lg:col-span-1">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-slate-100 flex flex-col">
               <div className="mb-4">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   หลักฐานรูปภาพ
@@ -273,12 +273,13 @@ export default function AddEntryPage() {
               {/* Upload Dropzone Style */}
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-green-100 bg-green-50/50 hover:bg-green-50 hover:border-green-300 rounded-2xl p-6 text-center cursor-pointer transition-all group mb-6"
+                className="border-2 border-dashed border-green-100 bg-green-50/50 hover:bg-green-50 hover:border-green-300 active:bg-green-100 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all group mb-4 sm:mb-6"
               >
-                <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                  <UploadCloud className="w-6 h-6 text-green-500" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-active:scale-95 transition-transform">
+                  <UploadCloud className="w-6 h-6 sm:w-7 sm:h-7 text-green-500" />
                 </div>
-                <p className="text-sm font-medium text-green-900">คลิกเพื่อเลือกรูปภาพ</p>
+                <p className="text-sm sm:text-base font-medium text-green-900">คลิกเพื่อเลือกรูปภาพ</p>
+                <p className="text-xs text-green-600/60 mt-1">หรือแตะที่นี่บนมือถือ</p>
                 <input
                   ref={fileInputRef}
                   id="file-upload"
@@ -291,7 +292,7 @@ export default function AddEntryPage() {
               </div>
 
               {/* Image Previews Grid */}
-              <div className="space-y-3 flex-1">
+              <div className="space-y-2 sm:space-y-3">
                 <AnimatePresence mode='popLayout'>
                   {imagePreviews.map((previewUrl, idx) => (
                     <motion.div
@@ -299,7 +300,7 @@ export default function AddEntryPage() {
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.5 }}
-                      className="relative group rounded-xl overflow-hidden shadow-sm border border-slate-100 aspect-video bg-slate-100"
+                      className="relative group rounded-lg sm:rounded-xl overflow-hidden shadow-sm border border-slate-100 aspect-video bg-slate-100"
                     >
                       <img 
                         src={previewUrl} 
@@ -310,7 +311,7 @@ export default function AddEntryPage() {
                       <button
                         type="button"
                         onClick={() => removeImage(idx)}
-                        className="absolute top-2 right-2 w-7 h-7 bg-white/90 backdrop-blur text-rose-500 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white hover:scale-110"
+                        className="absolute top-2 right-2 w-8 h-8 sm:w-7 sm:h-7 bg-white/95 backdrop-blur text-rose-500 rounded-full flex items-center justify-center shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white active:scale-95"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -319,8 +320,8 @@ export default function AddEntryPage() {
                 </AnimatePresence>
                 
                 {imagePreviews.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-32 text-slate-300 border border-slate-100 rounded-xl bg-slate-50/50">
-                    <ImageIcon className="w-8 h-8 mb-2 opacity-50" />
+                  <div className="flex flex-col items-center justify-center h-24 sm:h-32 text-slate-300 border border-slate-100 rounded-xl bg-slate-50/50">
+                    <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-50" />
                     <p className="text-xs">ยังไม่มีรูปภาพ</p>
                   </div>
                 )}
@@ -329,35 +330,34 @@ export default function AddEntryPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className="lg:col-span-3 space-y-3 sm:space-y-4">
             <AnimatePresence>
               {error && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2"
+                  className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-xs sm:text-sm flex items-center gap-2"
                 >
-                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  {error}
+                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
+                  <span>{error}</span>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => router.push('/dashboard')}
-                className="px-6 py-3.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-medium transition-colors"
+                className="px-6 py-3 sm:py-3.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 font-medium transition-colors text-sm sm:text-base"
               >
                 ยกเลิก
               </button>
               <motion.button
-                whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={uploading}
-                className="px-8 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed min-w-[160px]"
+                className="px-8 py-3 sm:py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 active:from-green-800 active:to-emerald-800 text-white rounded-xl font-bold shadow-lg shadow-green-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base"
               >
                 {uploading ? (
                   <>

@@ -169,94 +169,152 @@ export default function DashboardPage() {
   // --- Render ---
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 md:p-8 font-sans">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50/50 p-4 sm:p-6 md:p-8 font-sans">
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         
         {/* Header Section */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          className="flex flex-col gap-2"
         >
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
-            <p className="text-slate-500 text-sm mt-1">ยินดีต้อนรับ, จัดการแฟ้มสะสมผลงานของคุณได้ที่นี่</p>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
+          <p className="text-slate-500 text-xs sm:text-sm">ยินดีต้อนรับ, จัดการแฟ้มสะสมผลงานของคุณได้ที่นี่</p>
         </motion.div>
 
         {loading ? (
           <SkeletonLoader />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="space-y-6">
             
-            {/* 📊 Sidebar: Monthly Status (Bento Style) */}
+            {/* 📊 Monthly Status - Horizontal Scroll on Mobile */}
             <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="lg:col-span-1 space-y-6"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="lg:hidden"
             >
-              <div className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100 sticky top-6">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                  <div className="p-2 bg-green-100 text-green-600 rounded-xl">
-                    <Calendar className="w-5 h-5" />
+              <div className="bg-white rounded-2xl p-4 shadow-lg shadow-slate-200/50 border border-slate-100">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                  <div className="p-1.5 bg-green-100 text-green-600 rounded-lg">
+                    <Calendar className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-slate-800">สรุปสถานะ</h3>
+                  <h3 className="font-bold text-slate-800 text-sm">สรุปสถานะ</h3>
                 </div>
                 
-                <div className="space-y-4">
-                  {monthlyStatus.map((status, idx) => {
+                {/* Mobile: Horizontal Scroll */}
+                <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
+                  {monthlyStatus.slice(0, 3).map((status, idx) => {
                     const approval = approvals[status.key] || { deputy: false, director: false };
                     const isCurrentMonth = idx === 0;
                     
                     return (
-                      <motion.div 
+                      <div 
                         key={status.monthNum}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className={`p-4 rounded-2xl border transition-all ${
+                        className={`flex-shrink-0 w-[85%] sm:w-64 p-3 rounded-xl border snap-center ${
                           isCurrentMonth 
                             ? 'bg-green-50/50 border-green-100' 
-                            : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-md'
+                            : 'bg-slate-50/50 border-slate-100'
                         }`}
                       >
-                        <div className="flex justify-between items-start mb-3">
-                          <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-green-900' : 'text-slate-600'}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`text-xs font-semibold ${isCurrentMonth ? 'text-green-900' : 'text-slate-600'}`}>
                             {status.month}
                           </span>
-                          <span className="text-xs font-medium bg-white px-2 py-1 rounded-lg text-slate-500 border border-slate-100 shadow-sm">
+                          <span className="text-[10px] font-medium bg-white px-1.5 py-0.5 rounded text-slate-500 border border-slate-100">
                             {status.entryCount} งาน
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          <div className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold text-center border ${
+                          <div className={`flex-1 py-1 rounded-lg text-[9px] font-semibold text-center border ${
                             approval.deputy ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
                           }`}>
                             รองฯ {approval.deputy ? '✓' : ''}
                           </div>
-                          <div className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold text-center border ${
+                          <div className={`flex-1 py-1 rounded-lg text-[9px] font-semibold text-center border ${
                             approval.director ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
                           }`}>
                             ผอ. {approval.director ? '✓' : ''}
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>
               </div>
             </motion.div>
 
-            {/* 🖼️ Main Content: Entries Grid */}
-            <div className="lg:col-span-3 space-y-6">
+            {/* Desktop Sidebar Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
               
-              {/* Filters Bar */}
+              {/* 📊 Desktop Sidebar: Monthly Status */}
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="hidden lg:block lg:col-span-1"
+              >
+                <div className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100 sticky top-24">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                    <div className="p-2 bg-green-100 text-green-600 rounded-xl">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-bold text-slate-800">สรุปสถานะ</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {monthlyStatus.map((status, idx) => {
+                      const approval = approvals[status.key] || { deputy: false, director: false };
+                      const isCurrentMonth = idx === 0;
+                      
+                      return (
+                        <motion.div 
+                          key={status.monthNum}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            isCurrentMonth 
+                              ? 'bg-green-50/50 border-green-100' 
+                              : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-md'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-green-900' : 'text-slate-600'}`}>
+                              {status.month}
+                            </span>
+                            <span className="text-xs font-medium bg-white px-2 py-1 rounded-lg text-slate-500 border border-slate-100 shadow-sm">
+                              {status.entryCount} งาน
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <div className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold text-center border ${
+                              approval.deputy ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
+                            }`}>
+                              รองฯ {approval.deputy ? '✓' : ''}
+                            </div>
+                            <div className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold text-center border ${
+                              approval.director ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400 border-slate-200'
+                            }`}>
+                              ผอ. {approval.director ? '✓' : ''}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+
+            {/* 🖼️ Main Content: Entries Grid */}
+            <div className="lg:col-span-3 space-y-4 sm:space-y-6">
+              
+              {/* Filters Bar - Mobile Optimized */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-4 items-end"
+                className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4"
               >
-                <div className="flex-1 min-w-[200px]">
+                {/* Category Filter */}
+                <div className="w-full">
                   <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                     <Filter className="w-3 h-3" /> หมวดหมู่
                   </label>
@@ -275,30 +333,31 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-4 flex-wrap sm:flex-nowrap w-full sm:w-auto">
-                  <div className="w-full sm:w-auto">
+                {/* Date Range Filters */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">ตั้งแต่</label>
                     <input
                       type="date"
                       value={filterDateStart}
                       onChange={(e) => setFilterDateStart(e.target.value)}
-                      className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                      className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
                     />
                   </div>
-                  <div className="w-full sm:w-auto">
+                  <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">ถึง</label>
                     <input
                       type="date"
                       value={filterDateEnd}
                       onChange={(e) => setFilterDateEnd(e.target.value)}
-                      className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                      className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
                     />
                   </div>
                 </div>
               </motion.div>
 
-              {/* Entries Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Entries Grid - Responsive */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4 sm:gap-6">
                 <AnimatePresence mode='popLayout'>
                   {filteredEntries.length === 0 ? (
                     <motion.div 
@@ -327,10 +386,10 @@ export default function DashboardPage() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9 }}
                           transition={{ duration: 0.3, delay: index * 0.05 }}
-                          className="group bg-white rounded-3xl shadow-sm hover:shadow-xl hover:shadow-green-500/10 border border-slate-100 overflow-hidden transition-all duration-300 flex flex-col"
+                          className="group bg-white rounded-2xl sm:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-green-500/10 border border-slate-100 overflow-hidden transition-all duration-300 flex flex-col"
                         >
                           {/* Image Area */}
-                          <div className="h-48 bg-slate-100 relative overflow-hidden">
+                          <div className="h-40 sm:h-48 bg-slate-100 relative overflow-hidden">
                             {entry.images && entry.images.length > 0 ? (
                               <img
                                 src={entry.images[0]}
@@ -357,21 +416,23 @@ export default function DashboardPage() {
                           </div>
 
                           {/* Content Area */}
-                          <div className="p-5 flex-1 flex flex-col">
-                            <h3 className="font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-green-600 transition-colors">
+                          <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                            <h3 className="font-bold text-slate-800 text-sm sm:text-base mb-2 line-clamp-2 group-hover:text-green-600 transition-colors">
                               {entry.title}
                             </h3>
-                            <div className="flex items-center text-xs text-slate-500 mb-4">
-                              <Calendar className="w-3.5 h-3.5 mr-1.5 opacity-70" />
-                              {new Date(entry.dateStart).toLocaleDateString('th-TH', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}
+                            <div className="flex items-center text-xs text-slate-500 mb-3 sm:mb-4">
+                              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1.5 opacity-70 flex-shrink-0" />
+                              <span className="truncate">
+                                {new Date(entry.dateStart).toLocaleDateString('th-TH', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </span>
                             </div>
                             
-                            <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">สถานะประจำเดือน</span>
+                            <div className="mt-auto pt-3 sm:pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                              <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">สถานะ</span>
                               <div className="flex gap-2">
                                 <StatusBadge approved={status.deputy} label="รองฯ" />
                                 <StatusBadge approved={status.director} label="ผอ." />
@@ -384,6 +445,8 @@ export default function DashboardPage() {
                   )}
                 </AnimatePresence>
               </div>
+            </div>
+            
             </div>
           </div>
         )}

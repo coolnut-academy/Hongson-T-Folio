@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { LayoutDashboard, Users, FileCheck, LogOut } from 'lucide-react';
-import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  LayoutDashboard, 
+  Users, 
+  FileCheck, 
+  LogOut, 
+  ShieldCheck, 
+  Menu, 
+  X, 
+  Leaf 
+} from 'lucide-react';
 
 export default function AdminLayout({
   children,
@@ -15,7 +24,9 @@ export default function AdminLayout({
   const { userData, loading, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // --- Auth Protection ---
   useEffect(() => {
     if (!loading) {
       if (!userData) {
@@ -28,115 +39,164 @@ export default function AdminLayout({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">กำลังโหลด...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF9]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500"></div>
       </div>
     );
   }
 
-  if (!userData || (userData.role !== 'admin' && userData.role !== 'director' && userData.role !== 'deputy')) {
-    return null;
-  }
+  if (!userData) return null;
+
+  const navItems = [
+    { label: 'ภาพรวม', href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users },
+    { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck },
+  ];
 
   const handleSignOut = async () => {
     await signOut();
+    router.push('/login');
   };
 
-  const menuItems = [
-    { href: '/admin/dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'จัดการผู้ใช้', icon: Users },
-    { href: '/admin/compliance', label: 'ตรวจสอบการส่งงาน', icon: FileCheck },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex-shrink-0 flex flex-col">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <Image 
-              src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
-              alt="Hongson Logo" 
-              width={40}
-              height={40}
-              className="object-contain"
-            />
-          </div>
-          <h1 className="text-xl font-bold text-white">Hongson T-Folio</h1>
-          <p className="text-gray-400 text-sm mt-1">ระบบจัดการ</p>
-        </div>
-        <nav className="px-4 space-y-2 flex-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                  isActive
-                    ? 'bg-green-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="p-4 border-t border-gray-800">
-          <button
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition"
-          >
-            <LogOut className="h-5 w-5" />
-            <span>ออกจากระบบ</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Top Bar with Tabs */}
-        <header className="bg-gray-900 text-white pb-32">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h1 className="text-2xl font-bold">Admin Console</h1>
-                <p className="text-gray-400 text-sm">สวัสดี, {userData.name}</p>
-                <p className="text-gray-500 text-xs">Role: {userData.position}</p>
+    <div className="min-h-screen bg-[#FAFAF9] font-sans text-stone-600 flex flex-col">
+      
+      {/* 🟢 Top Navigation Bar (Sticky Glassmorphism) */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-stone-200/60 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            
+            {/* Logo Area */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-md shadow-emerald-500/20 text-white transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div className="hidden md:block">
+                <h1 className="font-bold text-emerald-950 text-sm leading-none">Admin Console</h1>
+                <p className="text-[10px] font-medium text-emerald-600/70 uppercase tracking-wider mt-0.5">
+                  Hongson School
+                </p>
               </div>
             </div>
-            <div className="flex space-x-4 overflow-x-auto pb-2">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
+
+            {/* 🖥️ Desktop Navigation (Centered Pills) */}
+            <div className="hidden md:flex items-center gap-1 bg-stone-100/50 p-1 rounded-full border border-stone-200/50">
+              {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`whitespace-nowrap px-4 py-2 rounded-md transition ${
-                      isActive ? 'bg-green-600' : 'bg-gray-800 hover:bg-gray-700'
+                    className={`relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 z-10 ${
+                      isActive ? 'text-emerald-700' : 'text-stone-500 hover:text-emerald-600'
                     }`}
                   >
+                    {isActive && (
+                      <motion.div
+                        layoutId="nav-pill-admin"
+                        className="absolute inset-0 bg-white rounded-full shadow-sm border border-stone-200/50"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        style={{ zIndex: -1 }}
+                      />
+                    )}
+                    <item.icon className={`w-4 h-4 ${isActive ? 'text-emerald-500' : 'text-stone-400'}`} />
                     {item.label}
                   </Link>
                 );
               })}
             </div>
-          </div>
-        </header>
 
-        {/* Page Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 pb-12 w-full">
-          {children}
+            {/* User Profile & Mobile Toggle */}
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-3 pl-4 border-l border-stone-200">
+                <div className="text-right">
+                  <p className="text-xs font-bold text-stone-700 leading-tight">{userData.name}</p>
+                  <p className="text-[10px] text-stone-400 capitalize">{userData.role}</p>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-100 to-white border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold shadow-sm">
+                  {userData.name.charAt(0)}
+                </div>
+                <button 
+                  onClick={handleSignOut}
+                  className="ml-2 p-2 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-all"
+                  title="ออกจากระบบ"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Mobile Hamburger */}
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 text-stone-500 hover:bg-stone-100 rounded-lg"
+              >
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* 📱 Mobile Menu Dropdown */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-stone-100 bg-white overflow-hidden"
+            >
+              <div className="px-4 py-4 space-y-2">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium ${
+                      pathname === item.href
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="pt-4 mt-4 border-t border-stone-100">
+                  <div className="flex items-center justify-between px-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+                        {userData.name.charAt(0)}
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-bold text-stone-700">{userData.name}</p>
+                        <p className="text-xs text-stone-500">{userData.role}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={handleSignOut}
+                      className="p-2 text-stone-400 hover:text-rose-500"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
+
+      {/* ➡️ Main Content Area */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {children}
+        </motion.div>
+      </main>
+
     </div>
   );
 }
-

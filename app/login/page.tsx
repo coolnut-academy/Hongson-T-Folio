@@ -87,13 +87,13 @@ export default function LoginPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", duration: 0.6, bounce: 0.5 }}
-              className="w-16 h-16 mx-auto bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30 mb-4 p-2"
+              className="w-20 h-20 mx-auto rounded-full flex items-center justify-center overflow-hidden mb-4"
             >
               <Image 
                 src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
                 alt="Hongson Logo" 
-                width={64}
-                height={64}
+                width={80}
+                height={80}
                 className="object-contain"
               />
             </motion.div>

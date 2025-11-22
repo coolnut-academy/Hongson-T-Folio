@@ -134,14 +134,14 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">จัดการผู้ใช้</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">จัดการผู้ใช้</h1>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+          className="w-full sm:w-auto bg-green-600 hover:bg-green-700 active:bg-green-800 text-white px-4 py-2.5 sm:py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm sm:text-base"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
           เพิ่มผู้ใช้
         </button>
       </div>
@@ -301,67 +301,106 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Users Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                  ชื่อ-สกุล
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                  Username
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                  ตำแหน่ง
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                  กลุ่มสาระฯ
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                  บทบาท
-                </th>
-                <th className="px-4 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">
-                  การจัดการ
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                    ไม่มีข้อมูลผู้ใช้
-                  </td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-4 font-medium text-gray-900">{user.name}</td>
-                    <td className="px-4 py-4 text-gray-600">{user.username}</td>
-                    <td className="px-4 py-4 text-gray-600">{user.position}</td>
-                    <td className="px-4 py-4 text-gray-600">{user.department}</td>
-                    <td className="px-4 py-4">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                        {roles.find((r) => r.value === user.role)?.label || user.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button
-                        onClick={() => handleDelete(user.id, user.name)}
-                        className="text-red-600 hover:text-red-800 transition"
-                        title="ลบผู้ใช้"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Users Table/Cards */}
+      {users.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500 border border-gray-200">
+          ไม่มีข้อมูลผู้ใช้
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Mobile Cards View */}
+          <div className="lg:hidden space-y-3">
+            {users.map((user) => (
+              <div key={user.id} className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-900 text-base mb-1">{user.name}</h3>
+                    <p className="text-xs text-gray-500">@{user.username}</p>
+                  </div>
+                  <button
+                    onClick={() => handleDelete(user.id, user.name)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition active:scale-95"
+                    title="ลบผู้ใช้"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">ตำแหน่ง:</span>
+                    <span className="text-gray-900 font-medium">{user.position}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">กลุ่มสาระ:</span>
+                    <span className="text-gray-900 font-medium text-right">{user.department}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="text-gray-500">บทบาท:</span>
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                      {roles.find((r) => r.value === user.role)?.label || user.role}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden lg:block bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      ชื่อ-สกุล
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      Username
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      ตำแหน่ง
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      กลุ่มสาระฯ
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      บทบาท
+                    </th>
+                    <th className="px-4 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">
+                      การจัดการ
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-4 font-medium text-gray-900">{user.name}</td>
+                      <td className="px-4 py-4 text-gray-600">{user.username}</td>
+                      <td className="px-4 py-4 text-gray-600">{user.position}</td>
+                      <td className="px-4 py-4 text-gray-600">{user.department}</td>
+                      <td className="px-4 py-4">
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                          {roles.find((r) => r.value === user.role)?.label || user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => handleDelete(user.id, user.name)}
+                          className="text-red-600 hover:text-red-800 transition"
+                          title="ลบผู้ใช้"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
