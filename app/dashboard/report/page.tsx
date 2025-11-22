@@ -8,6 +8,7 @@ import { getEntriesCollection } from '@/lib/constants';
 import ReportView from '@/components/ReportView';
 import { motion } from 'framer-motion';
 import { Printer, Calendar, Filter, FileText, Download } from 'lucide-react';
+import { generatePDF, handlePrint } from '@/lib/pdfUtils';
 
 interface Entry {
   id: string;
@@ -84,12 +85,14 @@ export default function ReportPage() {
     });
   }, [entries, filterDateStart, filterDateEnd]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleSavePDF = () => {
-    window.print();
+  const handleSavePDF = async () => {
+    const userName = userData?.name || 'user';
+    const dateStr = new Date().toLocaleDateString('th-TH', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }).replace(/\s/g, '-');
+    await generatePDF('report-content', `รายงานผลงาน-${userName}-${dateStr}`);
   };
 
   // --- Skeleton Loader ---
@@ -197,7 +200,7 @@ export default function ReportPage() {
           className="bg-white shadow-lg sm:shadow-xl shadow-slate-200/50 print:shadow-none print:border-none rounded-lg sm:rounded-xl overflow-hidden min-h-[600px] sm:min-h-[800px] print:min-h-0"
         >
           {/* Reuse existing ReportView component */}
-          <div className="p-4 sm:p-8 print:p-0">
+          <div id="report-content" className="p-4 sm:p-8 print:p-0">
             <ReportView
                 entries={items}
                 user={userData || { name: '' }}

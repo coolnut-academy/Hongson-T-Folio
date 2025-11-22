@@ -7,6 +7,7 @@ import { getUsersCollection, getEntriesCollection, getApprovalsCollection, getAp
 import { useAuth } from '@/context/AuthContext';
 import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download, Printer } from 'lucide-react';
 import ReportView from '@/components/ReportView';
+import { generatePDF, handlePrint } from '@/lib/pdfUtils';
 
 interface User {
   id: string;
@@ -437,7 +438,7 @@ export default function CompliancePage() {
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-4">
+            <div className="p-4" id="compliance-report-content">
               {getModalEntries().length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-gray-400">
                   <AlertTriangle className="w-12 h-12 mb-2 opacity-50" />
@@ -456,13 +457,19 @@ export default function CompliancePage() {
               {getModalEntries().length > 0 && (
                 <div className="flex gap-2 flex-1 print:hidden">
                   <button
-                    onClick={() => window.print()}
+                    onClick={async () => {
+                      if (viewUserWork) {
+                        const userName = viewUserWork.name;
+                        const monthText = new Date(filterYear, filterMonthNum - 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }).replace(/\s/g, '-');
+                        await generatePDF('compliance-report-content', `รายงาน-${userName}-${monthText}`);
+                      }
+                    }}
                     className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
                   >
                     <Download className="w-4 h-4" /> บันทึก PDF
                   </button>
                   <button
-                    onClick={() => window.print()}
+                    onClick={handlePrint}
                     className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
                   >
                     <Printer className="w-4 h-4" /> พิมพ์รายงาน

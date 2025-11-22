@@ -4,8 +4,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Users, FileText, Building2, BarChart3, ChevronDown, LucideIcon, Download, Calendar, TrendingUp, CheckCircle2, Printer } from 'lucide-react';
-import { getUsersCollection, getEntriesCollection, getApprovalsCollection, DEPARTMENTS } from '@/lib/constants';
+import { getUsersCollection, getEntriesCollection, getApprovalsCollection, DEPARTMENTS, CATEGORIES } from '@/lib/constants';
 import { motion } from 'framer-motion';
+import { generatePDFLandscape, handlePrint } from '@/lib/pdfUtils';
 
 // --- Types ---
 
@@ -97,6 +98,9 @@ export default function AdminDashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
+  
+  // Category filter
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -140,24 +144,47 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
-  // Filter entries by selected time period
+  // Get period display text with category
+  const getPeriodText = () => {
+    let timeText = '';
+    if (filterType === 'month') {
+      const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleDateString('th-TH', { month: 'long' });
+      timeText = `${monthName} ${selectedYear + 543}`;
+    } else if (filterType === 'year') {
+      timeText = `ปี ${selectedYear + 543}`;
+    } else if (dateStart && dateEnd) {
+      timeText = `${new Date(dateStart).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} - ${new Date(dateEnd).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    } else {
+      timeText = 'ทั้งหมด';
+    }
+    
+    const categoryText = selectedCategory === 'All' ? 'งานทั้งหมด' : selectedCategory;
+    return `${categoryText} | ${timeText}`;
+  };
+
+  // Filter entries by selected time period and category
   const filteredEntries = useMemo(() => {
     return entries.filter((e) => {
       const entryDate = new Date(e.dateStart);
       
+      // Time filter
+      let matchTime = true;
       if (filterType === 'month') {
-        return entryDate.getFullYear() === selectedYear && entryDate.getMonth() + 1 === selectedMonth;
+        matchTime = entryDate.getFullYear() === selectedYear && entryDate.getMonth() + 1 === selectedMonth;
       } else if (filterType === 'year') {
-        return entryDate.getFullYear() === selectedYear;
+        matchTime = entryDate.getFullYear() === selectedYear;
       } else if (filterType === 'range' && dateStart && dateEnd) {
         const start = new Date(dateStart);
         const end = new Date(dateEnd);
-        return entryDate >= start && entryDate <= end;
+        matchTime = entryDate >= start && entryDate <= end;
       }
       
-      return true;
+      // Category filter
+      const matchCategory = selectedCategory === 'All' || e.category === selectedCategory;
+      
+      return matchTime && matchCategory;
     });
-  }, [entries, filterType, selectedYear, selectedMonth, dateStart, dateEnd]);
+  }, [entries, filterType, selectedYear, selectedMonth, dateStart, dateEnd, selectedCategory]);
 
   // Compute statistics by department
   const departmentStats = useMemo((): DepartmentStats[] => {
@@ -214,12 +241,14 @@ export default function AdminDashboardPage() {
   }, [users, filteredEntries, approvals, filterType, selectedYear, selectedMonth]);
 
   // PDF Export Handlers
-  const handleSavePDF = () => {
-    window.print();
-  };
-
-  const handlePrint = () => {
-    window.print();
+  const handleSavePDF = async () => {
+    const dateStr = new Date().toLocaleDateString('th-TH', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }).replace(/\s/g, '-');
+    const periodText = getPeriodText().replace(/\s/g, '-');
+    await generatePDFLandscape('admin-stats-content', `สถิติผลงาน-${periodText}-${dateStr}`);
   };
 
   // Overall statistics
@@ -232,19 +261,6 @@ export default function AdminDashboardPage() {
   if (loading) {
     return <div className="p-8 max-w-7xl mx-auto"><SkeletonLoader /></div>;
   }
-
-  // Get period display text
-  const getPeriodText = () => {
-    if (filterType === 'month') {
-      const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleDateString('th-TH', { month: 'long' });
-      return `${monthName} ${selectedYear + 543}`;
-    } else if (filterType === 'year') {
-      return `ปี ${selectedYear + 543}`;
-    } else if (dateStart && dateEnd) {
-      return `${new Date(dateStart).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} - ${new Date(dateEnd).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-    }
-    return 'ทั้งหมด';
-  };
 
   return (
     <>
@@ -335,46 +351,64 @@ export default function AdminDashboardPage() {
             transition={{ delay: 0.2 }}
             className="no-print bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4"
           >
-            <div className="flex items-center gap-2 text-emerald-600 font-semibold text-sm">
-              <Calendar className="w-4 h-4" /> เลือกช่วงเวลา
+            {/* Category Filter */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-purple-600 font-semibold text-sm">
+                <FileText className="w-4 h-4" /> ประเภทงาน
+              </div>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium"
+              >
+                <option value="All">งานทั้งหมด</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Filter Type Selector */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilterType('month')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  filterType === 'month' 
-                    ? 'bg-emerald-600 text-white shadow-md' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                รายเดือน
-              </button>
-              <button
-                onClick={() => setFilterType('year')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  filterType === 'year' 
-                    ? 'bg-emerald-600 text-white shadow-md' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                รายปี
-              </button>
-              <button
-                onClick={() => setFilterType('range')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  filterType === 'range' 
-                    ? 'bg-emerald-600 text-white shadow-md' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                ช่วงเวลา
-              </button>
-            </div>
+            <div className="border-t border-slate-100 pt-4 space-y-3">
+              <div className="flex items-center gap-2 text-emerald-600 font-semibold text-sm">
+                <Calendar className="w-4 h-4" /> เลือกช่วงเวลา
+              </div>
+              
+              {/* Filter Type Selector */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFilterType('month')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filterType === 'month' 
+                      ? 'bg-emerald-600 text-white shadow-md' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  รายเดือน
+                </button>
+                <button
+                  onClick={() => setFilterType('year')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filterType === 'year' 
+                      ? 'bg-emerald-600 text-white shadow-md' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  รายปี
+                </button>
+                <button
+                  onClick={() => setFilterType('range')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filterType === 'range' 
+                      ? 'bg-emerald-600 text-white shadow-md' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  ช่วงเวลา
+                </button>
+              </div>
 
-            {/* Conditional Filters Based on Type */}
-            {filterType === 'month' && (
+              {/* Conditional Filters Based on Type */}
+              {filterType === 'month' && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">ปี พ.ศ.</label>
@@ -419,28 +453,29 @@ export default function AdminDashboardPage() {
               </div>
             )}
 
-            {filterType === 'range' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">วันที่เริ่มต้น</label>
-                  <input
-                    type="date"
-                    value={dateStart}
-                    onChange={(e) => setDateStart(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                  />
+              {filterType === 'range' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">วันที่เริ่มต้น</label>
+                    <input
+                      type="date"
+                      value={dateStart}
+                      onChange={(e) => setDateStart(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">วันที่สิ้นสุด</label>
+                    <input
+                      type="date"
+                      value={dateEnd}
+                      onChange={(e) => setDateEnd(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">วันที่สิ้นสุด</label>
-                  <input
-                    type="date"
-                    value={dateEnd}
-                    onChange={(e) => setDateEnd(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                  />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </motion.div>
 
           {/* Statistics Report */}
@@ -448,6 +483,7 @@ export default function AdminDashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
+            id="admin-stats-content"
             className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden print:shadow-none print:rounded-none"
           >
             <div className="p-6 border-b border-slate-100 bg-slate-50/30">

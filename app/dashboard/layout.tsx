@@ -1,11 +1,11 @@
 'use client';
 
-import { LogOut, PlusCircle, LayoutGrid, FileBarChart, User } from 'lucide-react';
+import { LogOut, PlusCircle, LayoutGrid, FileBarChart, User, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 export default function DashboardLayout({
@@ -17,6 +17,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // ตรวจจับการ Scroll เพื่อปรับ Shadow ของ Navbar
   useEffect(() => {
@@ -132,8 +133,9 @@ export default function DashboardLayout({
 
             {/* User Profile & Logout */}
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-                <div className="text-right hidden sm:block">
+              {/* Desktop Profile */}
+              <div className="hidden md:flex items-center gap-3 pl-4 border-l border-slate-200">
+                <div className="text-right">
                   <p className="text-sm font-semibold text-slate-700 leading-tight">{userData.name}</p>
                   <p className="text-xs text-slate-400">{userData.position || 'ครูผู้สอน'}</p>
                 </div>
@@ -142,16 +144,80 @@ export default function DashboardLayout({
                 </div>
               </div>
               
+              {/* Desktop Logout */}
               <button
                 onClick={handleSignOut}
-                className="p-2 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all duration-200 group"
+                className="hidden md:block p-2 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all duration-200 group"
                 title="ออกจากระบบ"
               >
                 <LogOut className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
               </button>
+
+              {/* Mobile Hamburger */}
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* 📱 Mobile Menu Dropdown */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-slate-100 bg-white overflow-hidden"
+            >
+              <div className="px-4 py-4 space-y-2">
+                {navItems.map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                        isActive
+                          ? 'bg-green-50 text-green-700'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <item.icon className={`w-5 h-5 ${isActive ? 'text-green-600' : 'text-slate-400'}`} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+                
+                {/* User Info & Logout in Mobile */}
+                <div className="pt-4 mt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between px-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-tr from-slate-200 to-slate-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-bold text-slate-700">{userData.name}</p>
+                        <p className="text-xs text-slate-500">{userData.position || 'ครูผู้สอน'}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={handleSignOut}
+                      className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                      title="ออกจากระบบ"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* 🔴 Main Content Area (มี padding-top กัน Navbar บัง) */}
