@@ -1,0 +1,104 @@
+'use client';
+
+import { useState, FormEvent, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { User } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { signIn, userData, user } = useAuth();
+  const router = useRouter();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && userData) {
+      if (userData.role === 'admin' || userData.role === 'director' || userData.role === 'deputy') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, userData, router]);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await signIn(email, password);
+      // The redirect will happen via useEffect when userData updates
+    } catch (err: any) {
+      console.error('Login error:', err);
+      let errorMessage = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+      
+      if (err.code === 'auth/invalid-email') {
+        errorMessage = 'อีเมลไม่ถูกต้อง';
+      } else if (err.code === 'auth/user-not-found') {
+        errorMessage = 'ไม่พบผู้ใช้';
+      } else if (err.code === 'auth/wrong-password') {
+        errorMessage = 'รหัสผ่านไม่ถูกต้อง';
+      } else if (err.code === 'auth/invalid-credential') {
+        errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+      }
+      
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-blue-800 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="bg-indigo-700 p-6 text-center">
+          <h1 className="text-3xl font-bold text-white">Hongson T-Folio</h1>
+          <p className="text-indigo-200 mt-2">ระบบแฟ้มสะสมผลงานและประเมินครู</p>
+        </div>
+        <div className="p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative">
+              <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Username"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="relative">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Password"
+                required
+                disabled={loading}
+              />
+            </div>
+            {error && (
+              <div className="text-red-600 text-sm text-center bg-red-50 p-2 rounded">
+                {error}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-md transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
