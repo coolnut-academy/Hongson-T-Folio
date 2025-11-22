@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import { useState, useRef, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { getEntriesCollection, APP_ID } from '@/lib/constants';
-import { Upload, X, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { Upload, X, PlusCircle, Image as ImageIcon } from 'lucide-react';
 import { CATEGORIES } from '@/lib/constants';
 
 export default function AddEntryPage() {
@@ -17,15 +15,14 @@ export default function AddEntryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    category: '',
+    category: CATEGORIES[0],
     title: '',
     description: '',
-    dateStart: '',
-    dateEnd: '',
+    dateStart: new Date().toISOString().split('T')[0],
+    dateEnd: new Date().toISOString().split('T')[0],
   });
 
-  const [images, setImages] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,68 +33,23 @@ export default function AddEntryPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileSelect = (files: FileList | null) => {
-    if (!files) return;
-
-    const newFiles = Array.from(files).slice(0, 4 - images.length);
-    const validFiles = newFiles.filter((file) => file.type.startsWith('image/'));
-
-    if (validFiles.length === 0) {
-      setError('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (images.length + files.length > 4) {
+      alert('อัปโหลดได้สูงสุด 4 รูป');
       return;
     }
-
-    if (images.length + validFiles.length > 4) {
-      setError('สามารถอัปโหลดได้สูงสุด 4 รูปภาพ');
-      return;
-    }
-
-    setError('');
-    const newImages = [...images, ...validFiles];
-    setImages(newImages);
-
-    // Create previews
-    const newPreviews = validFiles.map((file) => URL.createObjectURL(file));
-    setImagePreviews([...imagePreviews, ...newPreviews]);
-  };
-
-  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    handleFileSelect(e.target.files);
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleFileSelect(e.dataTransfer.files);
-  };
-
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const removeImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    const newPreviews = imagePreviews.filter((_, i) => i !== index);
-    
-    // Revoke object URL to free memory
-    URL.revokeObjectURL(imagePreviews[index]);
-    
-    setImages(newImages);
-    setImagePreviews(newPreviews);
-  };
-
-  const uploadImages = async (userId: string): Promise<string[]> => {
-    const uploadPromises = images.map(async (image, index) => {
-      const filename = `${Date.now()}_${index}_${image.name}`;
-      const storageRef = ref(storage, `entries/${userId}/${filename}`);
-      await uploadBytes(storageRef, image);
-      const downloadURL = await getDownloadURL(storageRef);
-      return downloadURL;
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImages((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
     });
-
-    return Promise.all(uploadPromises);
   };
+
+  // For prototype, we'll store images as base64 data URLs
+  // In production, upload to Firebase Storage
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,10 +68,6 @@ export default function AddEntryPage() {
     setUploading(true);
 
     try {
-      // Upload images to Firebase Storage
-      const userId = userData.id || userData.uid || '';
-      const imageUrls = await uploadImages(userId);
-
       // Save entry to Firestore using new path structure
       const entryData = {
         userId: userData.id, // Use username as userId
@@ -128,15 +76,12 @@ export default function AddEntryPage() {
         description: formData.description,
         dateStart: formData.dateStart,
         dateEnd: formData.dateEnd || formData.dateStart,
-        images: imageUrls,
-        timestamp: Date.now(), // Use timestamp instead of serverTimestamp for compatibility
+        images: images, // Store as base64 for prototype
+        timestamp: Date.now(),
       };
 
       const entriesPath = getEntriesCollection().split('/');
       await addDoc(collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]), entryData);
-
-      // Clean up preview URLs
-      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
 
       // Redirect to dashboard
       router.push('/dashboard');
@@ -149,17 +94,11 @@ export default function AddEntryPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center text-indigo-600 hover:text-indigo-700 mb-6"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        กลับไปยังแดชบอร์ด
-      </Link>
-
-      <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">เพิ่มผลงานใหม่</h1>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+          <PlusCircle className="mr-2" /> เพิ่มข้อมูลผลงาน
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Category */}
@@ -250,53 +189,37 @@ export default function AddEntryPage() {
 
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              รูปภาพ (สูงสุด 4 รูป)
-            </label>
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-500 transition-colors"
-            >
-              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">
-                คลิกหรือลากไฟล์มาวางที่นี่
-              </p>
-              <p className="text-sm text-gray-400">
-                รองรับไฟล์รูปภาพ (JPG, PNG, GIF)
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
-            </div>
-
-            {/* Image Previews */}
-            {imagePreviews.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={preview}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+            <label className="block text-sm font-medium text-gray-700">รูปภาพ (สูงสุด 4 รูป)</label>
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition">
+              <div className="space-y-1 text-center">
+                <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                  <span>อัปโหลดไฟล์</span>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    className="sr-only"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                  />
+                </label>
               </div>
-            )}
+            </div>
+            <div className="grid grid-cols-4 gap-2 mt-4">
+              {images.map((img, idx) => (
+                <div key={idx} className="relative group aspect-square bg-gray-100 rounded overflow-hidden">
+                  <img src={img} alt="preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setImages((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Error Message */}
@@ -307,20 +230,21 @@ export default function AddEntryPage() {
           )}
 
           {/* Submit Button */}
-          <div className="flex gap-4">
+          <div className="flex justify-end pt-4">
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard')}
+              className="mr-3 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              ยกเลิก
+            </button>
             <button
               type="submit"
               disabled={uploading}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm disabled:opacity-50"
             >
-              {uploading ? 'กำลังบันทึก...' : 'บันทึกผลงาน'}
+              {uploading ? '...' : 'บันทึก'}
             </button>
-            <Link
-              href="/dashboard"
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-            >
-              ยกเลิก
-            </Link>
           </div>
         </form>
       </div>
