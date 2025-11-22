@@ -4,7 +4,8 @@ import { useState, useRef, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { getEntriesCollection, APP_ID } from '@/lib/constants';
 import { Upload, X, PlusCircle, Image as ImageIcon } from 'lucide-react';
 import { CATEGORIES } from '@/lib/constants';
@@ -22,7 +23,9 @@ export default function AddEntryPage() {
     dateEnd: new Date().toISOString().split('T')[0],
   });
 
-  const [images, setImages] = useState<string[]>([]);
+  // Separate state for File objects and preview URLs
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,21 +38,36 @@ export default function AddEntryPage() {
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (images.length + files.length > 4) {
+    
+    if (imageFiles.length + files.length > 4) {
       alert('อัปโหลดได้สูงสุด 4 รูป');
       return;
     }
+
+    // Store File objects
+    const newFiles = [...imageFiles, ...files];
+    setImageFiles(newFiles);
+
+    // Create preview URLs for immediate UI display
     files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImages((prev) => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreviews((prev) => [...prev, previewUrl]);
     });
+
+    // Reset input to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
-  // For prototype, we'll store images as base64 data URLs
-  // In production, upload to Firebase Storage
+  const removeImage = (index: number) => {
+    // Revoke the object URL to free memory
+    URL.revokeObjectURL(imagePreviews[index]);
+    
+    // Remove from both arrays
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +86,25 @@ export default function AddEntryPage() {
     setUploading(true);
 
     try {
-      // Save entry to Firestore using new path structure
+      // Upload images to Firebase Storage and get download URLs
+      const imageUrls: string[] = [];
+      
+      for (const file of imageFiles) {
+        // Create storage reference: evidence/{userId}/{timestamp}_{filename}
+        const storageRef = ref(
+          storage,
+          `evidence/${userData.id}/${Date.now()}_${file.name}`
+        );
+        
+        // Upload the file
+        await uploadBytes(storageRef, file);
+        
+        // Get the download URL
+        const downloadURL = await getDownloadURL(storageRef);
+        imageUrls.push(downloadURL);
+      }
+
+      // Save entry to Firestore with Storage URLs
       const entryData = {
         userId: userData.id, // Use username as userId
         category: formData.category,
@@ -76,12 +112,18 @@ export default function AddEntryPage() {
         description: formData.description,
         dateStart: formData.dateStart,
         dateEnd: formData.dateEnd || formData.dateStart,
-        images: images, // Store as base64 for prototype
+        images: imageUrls, // Store Firebase Storage URLs
         timestamp: Date.now(),
       };
 
       const entriesPath = getEntriesCollection().split('/');
-      await addDoc(collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]), entryData);
+      await addDoc(
+        collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]),
+        entryData
+      );
+
+      // Clean up preview URLs
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
 
       // Redirect to dashboard
       router.push('/dashboard');
@@ -207,12 +249,12 @@ export default function AddEntryPage() {
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2 mt-4">
-              {images.map((img, idx) => (
+              {imagePreviews.map((previewUrl, idx) => (
                 <div key={idx} className="relative group aspect-square bg-gray-100 rounded overflow-hidden">
-                  <img src={img} alt="preview" className="w-full h-full object-cover" />
+                  <img src={previewUrl} alt={`preview ${idx + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => setImages((prev) => prev.filter((_, i) => i !== idx))}
+                    onClick={() => removeImage(idx)}
                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
                   >
                     <X className="w-4 h-4" />
@@ -241,9 +283,9 @@ export default function AddEntryPage() {
             <button
               type="submit"
               disabled={uploading}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm disabled:opacity-50"
+              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading ? '...' : 'บันทึก'}
+              {uploading ? 'กำลังอัปโหลดรูปภาพ...' : 'บันทึก'}
             </button>
           </div>
         </form>
