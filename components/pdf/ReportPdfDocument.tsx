@@ -131,15 +131,26 @@ const styles = StyleSheet.create({
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
+    gap: 6,
+    marginTop: 6,
+  },
+  imageSection: {
+    marginTop: 10,
+  },
+  imageLabel: {
+    fontSize: 9,
+    fontWeight: 600,
+    letterSpacing: 0.5,
+    color: '#475569',
+    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   image: {
     width: 80,
     height: 80,
     objectFit: 'cover',
     borderRadius: 6,
-    marginRight: 6,
-    marginBottom: 6,
+    backgroundColor: '#f8fafc',
   },
   emptyState: {
     textAlign: 'center',
@@ -221,12 +232,15 @@ const ReportPdfDocument = ({
             )}
 
             {entry.images && entry.images.length > 0 && (
-              <View style={styles.imageGrid}>
-                {entry.images.slice(0, 6).map((imageUrl, imageIndex) => (
-                  // @react-pdf/renderer images render into PDFs, so alt text is not supported.
-                  // eslint-disable-next-line jsx-a11y/alt-text
-                  <Image key={`${entry.id}-${imageIndex}`} src={imageUrl} style={styles.image} />
-                ))}
+              <View style={styles.imageSection}>
+                <Text style={styles.imageLabel}>ภาพประกอบ ({entry.images.length})</Text>
+                <View style={styles.imageGrid}>
+                  {entry.images.map((imageUrl, imageIndex) => (
+                    // @react-pdf/renderer images render into PDFs, so alt text is not supported.
+                    // eslint-disable-next-line jsx-a11y/alt-text
+                    <Image key={`${entry.id}-${imageIndex}`} src={imageUrl} style={styles.image} />
+                  ))}
+                </View>
               </View>
             )}
           </View>
