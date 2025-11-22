@@ -16,6 +16,26 @@ export const isMobileDevice = (): boolean => {
  * @param elementId - ID of the HTML element to convert to PDF
  * @param filename - Name of the PDF file (without extension)
  */
+// Helper function to convert any color to RGB
+const convertToRGB = (color: string): string | null => {
+  if (!color || color === 'transparent' || color === 'inherit') return null;
+  
+  // If already in rgb/rgba format, return as is
+  if (color.startsWith('rgb')) return color;
+  
+  // If it's a hex color, return as is (html2canvas supports hex)
+  if (color.startsWith('#')) return color;
+  
+  // Create a temporary element to let browser convert the color
+  const temp = document.createElement('div');
+  temp.style.color = color;
+  document.body.appendChild(temp);
+  const computed = window.getComputedStyle(temp).color;
+  document.body.removeChild(temp);
+  
+  return computed;
+};
+
 export const generatePDF = async (elementId: string, filename: string = 'report'): Promise<void> => {
   const element = document.getElementById(elementId);
   
@@ -41,17 +61,27 @@ export const generatePDF = async (elementId: string, filename: string = 'report'
         const elements = clonedDoc.querySelectorAll('*');
         elements.forEach((el: Element) => {
           if (el instanceof HTMLElement) {
-            const style = window.getComputedStyle(el);
-            // Convert computed colors to RGB
-            if (style.color) {
-              el.style.color = style.color;
-            }
-            if (style.backgroundColor) {
-              el.style.backgroundColor = style.backgroundColor;
-            }
-            if (style.borderColor) {
-              el.style.borderColor = style.borderColor;
-            }
+            // Get computed style from the original document
+            const originalEl = document.querySelector(`[data-pdf-id="${el.getAttribute('data-pdf-id')}"]`) || el;
+            const style = window.getComputedStyle(originalEl);
+            
+            // Force convert all color properties
+            const colorProperties = [
+              'color', 'backgroundColor', 'borderColor', 
+              'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+              'outlineColor', 'textDecorationColor', 'fill', 'stroke'
+            ];
+            
+            colorProperties.forEach(prop => {
+              const value = style.getPropertyValue(prop);
+              if (value && value !== 'transparent' && value !== 'inherit') {
+                // Convert to RGB format that html2canvas understands
+                const rgbValue = convertToRGB(value);
+                if (rgbValue) {
+                  (el.style as any)[prop] = rgbValue;
+                }
+              }
+            });
           }
         });
       }
@@ -131,17 +161,27 @@ export const generatePDFLandscape = async (elementId: string, filename: string =
         const elements = clonedDoc.querySelectorAll('*');
         elements.forEach((el: Element) => {
           if (el instanceof HTMLElement) {
-            const style = window.getComputedStyle(el);
-            // Convert computed colors to RGB
-            if (style.color) {
-              el.style.color = style.color;
-            }
-            if (style.backgroundColor) {
-              el.style.backgroundColor = style.backgroundColor;
-            }
-            if (style.borderColor) {
-              el.style.borderColor = style.borderColor;
-            }
+            // Get computed style from the original document
+            const originalEl = document.querySelector(`[data-pdf-id="${el.getAttribute('data-pdf-id')}"]`) || el;
+            const style = window.getComputedStyle(originalEl);
+            
+            // Force convert all color properties
+            const colorProperties = [
+              'color', 'backgroundColor', 'borderColor', 
+              'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+              'outlineColor', 'textDecorationColor', 'fill', 'stroke'
+            ];
+            
+            colorProperties.forEach(prop => {
+              const value = style.getPropertyValue(prop);
+              if (value && value !== 'transparent' && value !== 'inherit') {
+                // Convert to RGB format that html2canvas understands
+                const rgbValue = convertToRGB(value);
+                if (rgbValue) {
+                  (el.style as any)[prop] = rgbValue;
+                }
+              }
+            });
           }
         });
       }
