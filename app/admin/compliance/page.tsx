@@ -231,7 +231,7 @@ export default function CompliancePage() {
               <th className="px-4 py-3 text-left w-10">
                 <button onClick={toggleSelectAll} className="text-gray-500">
                   {selectedUsers.length === complianceList.length && complianceList.length > 0 ? (
-                    <CheckSquare className="w-5 h-5 text-indigo-600" />
+                    <CheckSquare className="w-5 h-5 text-green-600" />
                   ) : (
                     <Square className="w-5 h-5" />
                   )}
@@ -261,14 +261,14 @@ export default function CompliancePage() {
             {complianceList.map((u) => (
               <tr
                 key={u.id}
-                className={`${selectedUsers.includes(u.id) ? 'bg-indigo-50' : ''} ${
+                className={`${selectedUsers.includes(u.id) ? 'bg-green-50' : ''} ${
                   !u.hasSubmitted ? 'bg-red-50' : ''
                 }`}
               >
                 <td className="px-4 py-4">
                   <button onClick={() => toggleSelectUser(u.id)}>
                     {selectedUsers.includes(u.id) ? (
-                      <CheckSquare className="w-5 h-5 text-indigo-600" />
+                      <CheckSquare className="w-5 h-5 text-green-600" />
                     ) : (
                       <Square className="w-5 h-5 text-gray-400" />
                     )}
@@ -299,7 +299,7 @@ export default function CompliancePage() {
                 <td className="px-4 py-4 whitespace-nowrap text-center">
                   <button
                     onClick={() => setViewUserWork(u)}
-                    className="text-indigo-600 hover:text-indigo-900 flex justify-center w-full"
+                    className="text-green-600 hover:text-green-900 flex justify-center w-full"
                   >
                     <Eye className="w-5 h-5" />
                   </button>

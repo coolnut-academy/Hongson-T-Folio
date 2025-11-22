@@ -1,27 +1,95 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Users, FileText } from 'lucide-react';
+import { Users, FileText, Building2, BarChart3, ChevronDown, LucideIcon } from 'lucide-react';
 import { getUsersCollection, getEntriesCollection, DEPARTMENTS } from '@/lib/constants';
 import ReportView from '@/components/ReportView';
+import { motion } from 'framer-motion';
+
+// --- Types ---
+
+interface User {
+  id: string;
+  username: string;
+  name: string;
+  position: string;
+  department: string;
+  role: string;
+}
+
+interface Entry {
+  id: string;
+  userId: string;
+  title: string;
+  category: string;
+  description: string;
+  dateStart: string;
+  dateEnd: string;
+  images: string[];
+  createdAt?: Timestamp;
+  approved?: {
+    deputy?: boolean;
+    director?: boolean;
+  };
+}
+
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: LucideIcon;
+  colorClass: {
+    bg: string;
+    icon: string;
+    text: string;
+  };
+}
+
+// --- Components ---
+
+const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }: StatCardProps) => (
+  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-start justify-between group hover:shadow-md transition-all">
+    <div>
+      <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
+      <h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3>
+      <p className={`text-xs font-medium mt-2 ${colorClass.text}`}>{subtitle}</p>
+    </div>
+    <div className={`p-3 rounded-2xl ${colorClass.bg}`}>
+      <Icon className={`w-6 h-6 ${colorClass.icon}`} />
+    </div>
+  </div>
+);
+
+const SkeletonLoader = () => (
+  <div className="space-y-6 animate-pulse">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-32 bg-slate-200 rounded-3xl"></div>
+      ))}
+    </div>
+    <div className="h-16 bg-slate-200 rounded-2xl"></div>
+    <div className="h-96 bg-slate-200 rounded-3xl"></div>
+  </div>
+);
 
 export default function AdminDashboardPage() {
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [selectedUser, setSelectedUser] = useState('All');
-  const [users, setUsers] = useState<any[]>([]);
-  const [entries, setEntries] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // --- Logic (Preserved) ---
   useEffect(() => {
     const usersPath = getUsersCollection().split('/');
     const usersRef = collection(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4]);
     
     const unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
       const usersData = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((u: any) => u.role !== 'admin');
+        .map((doc) => ({ id: doc.id, ...doc.data() } as User))
+        .filter((u) => u.role !== 'admin');
       setUsers(usersData);
     });
 
@@ -32,7 +100,7 @@ export default function AdminDashboardPage() {
       const entriesData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      } as Entry));
       setEntries(entriesData);
       setLoading(false);
     });
@@ -43,100 +111,154 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
-  const filteredUsers = users.filter((u: any) => {
+  const filteredUsers = users.filter((u) => {
     if (selectedDepartment !== 'All' && u.department !== selectedDepartment) return false;
     return true;
   });
 
-  const filteredEntries = entries.filter((e: any) => {
+  const filteredEntries = entries.filter((e) => {
     if (selectedUser !== 'All' && e.userId !== selectedUser) return false;
     if (selectedDepartment !== 'All') {
-      const user = users.find((u: any) => u.id === e.userId);
+      const user = users.find((u) => u.id === e.userId);
       return user && user.department === selectedDepartment;
     }
     return true;
   });
 
+  // --- Render ---
+
+  if (loading) {
+    return <div className="p-8 max-w-7xl mx-auto"><SkeletonLoader /></div>;
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow flex gap-4 items-center flex-wrap">
-        <span className="text-sm font-bold text-gray-700">แสดงผลตาม:</span>
-        <select
-          value={selectedDepartment}
-          onChange={(e) => {
-            setSelectedDepartment(e.target.value);
-            setSelectedUser('All');
-          }}
-          className="border rounded p-2 text-sm"
+    <div className="min-h-screen bg-slate-50/50 font-sans">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-1"
         >
-          <option value="All">ทุกกลุ่มสาระฯ</option>
-          {DEPARTMENTS.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">ภาพรวมผู้บริหาร</h1>
+          <p className="text-slate-500 text-sm">ติดตามสถานะการส่งงานและประเมินผลบุคลากร</p>
+        </motion.div>
 
-        <select
-          value={selectedUser}
-          onChange={(e) => setSelectedUser(e.target.value)}
-          className="border rounded p-2 text-sm"
+        {/* Stats Cards Grid */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
         >
-          <option value="All">บุคลากรทั้งหมด (ในกลุ่มที่เลือก)</option>
-          {filteredUsers.map((u: any) => (
-            <option key={u.id} value={u.id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-          <h3 className="text-gray-500 text-sm font-medium">ผลงานรวม (ที่แสดง)</h3>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{filteredEntries.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-          <h3 className="text-gray-500 text-sm font-medium">จำนวนบุคลากร (ที่แสดง)</h3>
-          <p className="text-3xl font-bold text-gray-900 mt-2">
-            {selectedUser !== 'All' ? 1 : filteredUsers.length}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-          <h3 className="text-gray-500 text-sm font-medium">กลุ่มสาระฯ ที่เลือก</h3>
-          <p className="text-lg font-bold text-indigo-600 mt-2 line-clamp-2">
-            {selectedDepartment === 'All' ? 'ทั้งหมด' : selectedDepartment}
-          </p>
-        </div>
-      </div>
-
-      {/* Report Area */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">กำลังโหลด...</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <ReportView
-            entries={filteredEntries}
-            user={{
-              name:
-                selectedUser !== 'All'
-                  ? users.find((u: any) => u.id === selectedUser)?.name
-                  : selectedDepartment !== 'All'
-                    ? `รวมบุคลากร ${selectedDepartment}`
-                    : 'บุคลากรทั้งหมด',
-            }}
-            title="รายงานสรุปผลงาน (ผู้บริหาร)"
-            showUserCol={true}
-            usersMap={users.reduce((acc: any, u: any) => ({ ...acc, [u.id]: u.name }), {})}
+          <StatCard 
+            title="ผลงานรวม (ที่เลือก)" 
+            value={filteredEntries.length} 
+            subtitle="รายการส่งงานทั้งหมด"
+            icon={FileText}
+            colorClass={{ bg: 'bg-green-50', icon: 'text-green-600', text: 'text-green-600' }}
           />
-        </div>
-      )}
+          <StatCard 
+            title="บุคลากร (ที่เลือก)" 
+            value={selectedUser !== 'All' ? 1 : filteredUsers.length} 
+            subtitle="คน"
+            icon={Users}
+            colorClass={{ bg: 'bg-emerald-50', icon: 'text-emerald-600', text: 'text-emerald-600' }}
+          />
+          <StatCard 
+            title="กลุ่มสาระฯ" 
+            value={selectedDepartment === 'All' ? 'ทั้งหมด' : selectedDepartment} 
+            subtitle="แผนกวิชา"
+            icon={Building2}
+            colorClass={{ bg: 'bg-orange-50', icon: 'text-orange-600', text: 'text-orange-600' }}
+          />
+        </motion.div>
+
+        {/* Filter Bar */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 items-end"
+        >
+          <div className="w-full md:flex-1">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <Building2 className="w-3 h-3" /> กรองตามกลุ่มสาระฯ
+            </label>
+            <div className="relative">
+              <select
+                value={selectedDepartment}
+                onChange={(e) => {
+                  setSelectedDepartment(e.target.value);
+                  setSelectedUser('All');
+                }}
+                className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all appearance-none cursor-pointer text-slate-700 font-medium"
+              >
+                <option value="All">แสดงทุกกลุ่มสาระฯ</option>
+                {DEPARTMENTS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="w-full md:flex-1">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <Users className="w-3 h-3" /> กรองตามรายบุคคล
+            </label>
+            <div className="relative">
+              <select
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+                className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all appearance-none cursor-pointer text-slate-700 font-medium"
+              >
+                <option value="All">
+                  {selectedDepartment === 'All' ? 'บุคลากรทั้งหมด' : `ทุกคนใน ${selectedDepartment}`}
+                </option>
+                {filteredUsers.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Report View Area */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden"
+        >
+          <div className="p-6 border-b border-slate-100 bg-slate-50/30 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-green-600" />
+            <h3 className="font-bold text-slate-700">รายงานสรุปข้อมูล</h3>
+          </div>
+          
+          <div className="p-6 md:p-8">
+            <ReportView
+              entries={filteredEntries}
+              user={{
+                name:
+                  selectedUser !== 'All'
+                    ? users.find((u) => u.id === selectedUser)?.name || ''
+                    : selectedDepartment !== 'All'
+                      ? `ภาพรวม: ${selectedDepartment}`
+                      : 'ภาพรวมบุคลากรทั้งหมด',
+                position: 'รายงานสำหรับผู้บริหาร'
+              }}
+              title="รายงานสรุปผลงานบุคลากร"
+              showUserCol={true}
+              usersMap={users.reduce((acc, u) => ({ ...acc, [u.id]: u.name }), {} as Record<string, string>)}
+              enableDrag={false} // Admin view usually doesn't need drag reordering for overview
+            />
+          </div>
+        </motion.div>
+
+      </div>
     </div>
   );
 }
-

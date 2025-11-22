@@ -4,7 +4,8 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Lock, Loader2, ArrowRight, GraduationCap, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Loader2, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -44,7 +45,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 relative overflow-hidden font-sans">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 relative overflow-hidden font-sans">
       
       {/* 🎨 Background Animation (ตกแต่งพื้นหลัง) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -55,7 +56,7 @@ export default function LoginPage() {
             scale: [1, 1.05, 1]
           }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[10%] -right-[10%] w-[600px] h-[600px] bg-indigo-200/30 rounded-full blur-[100px]" 
+          className="absolute -top-[10%] -right-[10%] w-[600px] h-[600px] bg-green-200/30 rounded-full blur-[100px]" 
         />
         <motion.div 
           animate={{ 
@@ -64,7 +65,7 @@ export default function LoginPage() {
             scale: [1, 1.1, 1]
           }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute top-[20%] -left-[10%] w-[500px] h-[500px] bg-purple-200/30 rounded-full blur-[100px]" 
+          className="absolute top-[20%] -left-[10%] w-[500px] h-[500px] bg-emerald-200/30 rounded-full blur-[100px]" 
         />
       </div>
 
@@ -75,10 +76,10 @@ export default function LoginPage() {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="z-10 w-full max-w-md p-6 sm:p-8"
       >
-        <div className="relative bg-white/80 backdrop-blur-2xl border border-white/60 shadow-2xl shadow-indigo-500/10 rounded-[2rem] p-8 overflow-hidden">
+        <div className="relative bg-white/80 backdrop-blur-2xl border border-white/60 shadow-2xl shadow-green-500/10 rounded-[2rem] p-8 overflow-hidden">
           
           {/* เส้นสีด้านบนการ์ด */}
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500" />
 
           {/* 🎓 Header Section */}
           <div className="text-center space-y-4 mb-8">
@@ -86,16 +87,22 @@ export default function LoginPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", duration: 0.6, bounce: 0.5 }}
-              className="w-16 h-16 mx-auto bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-4"
+              className="w-16 h-16 mx-auto bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30 mb-4 p-2"
             >
-              <GraduationCap className="w-9 h-9 text-white" strokeWidth={1.5} />
+              <Image 
+                src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
+                alt="Hongson Logo" 
+                width={64}
+                height={64}
+                className="object-contain"
+              />
             </motion.div>
             
             <div>
               <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
-                Hongson <span className="text-indigo-600">T-Folio</span>
+                Hongson <span className="text-green-600">T-Folio</span>
               </h1>
-              <p className="text-slate-500 text-sm font-medium mt-2">
+              <p className="text-slate-600 text-sm font-medium mt-2">
                 ระบบแฟ้มสะสมผลงานและประเมินครู
               </p>
             </div>
@@ -109,14 +116,14 @@ export default function LoginPage() {
               <label className="text-xs font-bold text-slate-400 ml-1 uppercase tracking-wider">ชื่อผู้ใช้งาน</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                  <User className="h-5 w-5 text-slate-400 group-focus-within:text-green-600 transition-colors duration-300" />
                 </div>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading}
-                  className="block w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all duration-300 text-slate-700 placeholder:text-slate-400 font-medium disabled:opacity-50"
+                  className="block w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all duration-300 text-slate-700 placeholder:text-slate-400 font-medium disabled:opacity-50"
                   placeholder="Username"
                   required
                 />
@@ -128,14 +135,14 @@ export default function LoginPage() {
               <label className="text-xs font-bold text-slate-400 ml-1 uppercase tracking-wider">รหัสผ่าน</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors duration-300" />
+                  <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-green-600 transition-colors duration-300" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
-                  className="block w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all duration-300 text-slate-700 placeholder:text-slate-400 font-medium disabled:opacity-50"
+                  className="block w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all duration-300 text-slate-700 placeholder:text-slate-400 font-medium disabled:opacity-50"
                   placeholder="Password"
                   required
                 />
@@ -146,9 +153,9 @@ export default function LoginPage() {
                   disabled={loading}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-slate-400 hover:text-indigo-500 transition-colors duration-300" />
+                    <EyeOff className="h-5 w-5 text-slate-400 hover:text-green-600 transition-colors duration-300" />
                   ) : (
-                    <Eye className="h-5 w-5 text-slate-400 hover:text-indigo-500 transition-colors duration-300" />
+                    <Eye className="h-5 w-5 text-slate-400 hover:text-green-600 transition-colors duration-300" />
                   )}
                 </button>
               </div>
@@ -173,11 +180,11 @@ export default function LoginPage() {
 
             {/* 🔘 Submit Button */}
             <motion.button
-              whileHover={{ scale: 1.01, boxShadow: "0 20px 25px -5px rgb(79 70 229 / 0.3)" }}
+              whileHover={{ scale: 1.01, boxShadow: "0 20px 25px -5px rgb(34 197 94 / 0.3)" }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+              className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/30 flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
             >
               {loading ? (
                 <>

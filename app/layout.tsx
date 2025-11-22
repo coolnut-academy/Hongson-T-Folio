@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Hongson T-Folio",
   description: "ระบบแฟ้มสะสมผลงานและประเมินครู",
+  icons: {
+    icon: '/logo-hongson-mv.svg',
+  },
 };
 
 export default function RootLayout({

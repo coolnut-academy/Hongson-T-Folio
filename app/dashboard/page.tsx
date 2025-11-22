@@ -197,7 +197,7 @@ export default function DashboardPage() {
             >
               <div className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100 sticky top-6">
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
+                  <div className="p-2 bg-green-100 text-green-600 rounded-xl">
                     <Calendar className="w-5 h-5" />
                   </div>
                   <h3 className="font-bold text-slate-800">สรุปสถานะ</h3>
@@ -216,12 +216,12 @@ export default function DashboardPage() {
                         transition={{ delay: idx * 0.1 }}
                         className={`p-4 rounded-2xl border transition-all ${
                           isCurrentMonth 
-                            ? 'bg-indigo-50/50 border-indigo-100' 
+                            ? 'bg-green-50/50 border-green-100' 
                             : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-md'
                         }`}
                       >
                         <div className="flex justify-between items-start mb-3">
-                          <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-indigo-900' : 'text-slate-600'}`}>
+                          <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-green-900' : 'text-slate-600'}`}>
                             {status.month}
                           </span>
                           <span className="text-xs font-medium bg-white px-2 py-1 rounded-lg text-slate-500 border border-slate-100 shadow-sm">
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                     <select
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
-                      className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none appearance-none transition-all cursor-pointer"
+                      className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none appearance-none transition-all cursor-pointer"
                     >
                       <option value="All">แสดงทั้งหมด</option>
                       {CATEGORIES.map((c) => (
@@ -282,7 +282,7 @@ export default function DashboardPage() {
                       type="date"
                       value={filterDateStart}
                       onChange={(e) => setFilterDateStart(e.target.value)}
-                      className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                      className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
                     />
                   </div>
                   <div className="w-full sm:w-auto">
@@ -291,7 +291,7 @@ export default function DashboardPage() {
                       type="date"
                       value={filterDateEnd}
                       onChange={(e) => setFilterDateEnd(e.target.value)}
-                      className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                      className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9 }}
                           transition={{ duration: 0.3, delay: index * 0.05 }}
-                          className="group bg-white rounded-3xl shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 border border-slate-100 overflow-hidden transition-all duration-300 flex flex-col"
+                          className="group bg-white rounded-3xl shadow-sm hover:shadow-xl hover:shadow-green-500/10 border border-slate-100 overflow-hidden transition-all duration-300 flex flex-col"
                         >
                           {/* Image Area */}
                           <div className="h-48 bg-slate-100 relative overflow-hidden">
@@ -344,7 +344,7 @@ export default function DashboardPage() {
                             )}
                             
                             <div className="absolute top-4 right-4">
-                              <span className="bg-white/90 backdrop-blur-md text-indigo-600 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wide">
+                              <span className="bg-white/90 backdrop-blur-md text-green-600 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-sm uppercase tracking-wide">
                                 {entry.category}
                               </span>
                             </div>
@@ -358,7 +358,7 @@ export default function DashboardPage() {
 
                           {/* Content Area */}
                           <div className="p-5 flex-1 flex flex-col">
-                            <h3 className="font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                            <h3 className="font-bold text-slate-800 mb-2 line-clamp-1 group-hover:text-green-600 transition-colors">
                               {entry.title}
                             </h3>
                             <div className="flex items-center text-xs text-slate-500 mb-4">

@@ -1,11 +1,12 @@
 'use client';
 
-import { FileText, LogOut, PlusCircle, LayoutGrid, FileBarChart, ChevronDown, User } from 'lucide-react';
+import { LogOut, PlusCircle, LayoutGrid, FileBarChart, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 export default function DashboardLayout({
   children,
@@ -37,8 +38,8 @@ export default function DashboardLayout({
       <div className="min-h-screen w-full flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-12 h-12 border-4 border-indigo-100 rounded-full animate-spin"></div>
-            <div className="absolute top-0 left-0 w-12 h-12 border-4 border-transparent border-t-indigo-600 rounded-full animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-green-100 rounded-full animate-spin"></div>
+            <div className="absolute top-0 left-0 w-12 h-12 border-4 border-transparent border-t-green-600 rounded-full animate-spin"></div>
           </div>
           <p className="text-slate-500 text-sm font-medium animate-pulse">กำลังโหลดข้อมูล...</p>
         </div>
@@ -68,7 +69,7 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50/50 font-sans selection:bg-indigo-100 selection:text-indigo-700">
+    <div className="min-h-screen bg-slate-50/50 font-sans selection:bg-green-100 selection:text-green-700">
       
       {/* 🟢 Navbar (Glassmorphism) */}
       <nav 
@@ -83,8 +84,14 @@ export default function DashboardLayout({
             
             {/* Logo Area */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <FileText className="h-5 w-5 text-white" />
+              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg shadow-green-500/20 p-1">
+                <Image 
+                  src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
+                  alt="Hongson Logo" 
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
               </div>
               <div className="flex flex-col">
                 <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 tracking-tight leading-none">
@@ -105,7 +112,7 @@ export default function DashboardLayout({
                     key={item.id}
                     href={item.href}
                     className={`relative px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 flex items-center gap-2 z-10 ${
-                      isActive ? 'text-indigo-700' : 'text-slate-500 hover:text-slate-700'
+                      isActive ? 'text-green-700' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
                     {isActive && (
@@ -116,7 +123,7 @@ export default function DashboardLayout({
                         style={{ zIndex: -1 }}
                       />
                     )}
-                    <item.icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                    <item.icon className={`w-4 h-4 ${isActive ? 'text-green-600' : 'text-slate-400'}`} />
                     {item.label}
                   </Link>
                 );

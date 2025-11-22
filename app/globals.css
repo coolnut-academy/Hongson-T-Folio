@@ -2,7 +2,25 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1e3a2f;
+  
+  /* Cozy Green Palette */
+  --green-50: #f0f7f4;
+  --green-100: #d9ede3;
+  --green-200: #b3dbc7;
+  --green-300: #8cc9ab;
+  --green-400: #66b78f;
+  --green-500: #4a9d7a;
+  --green-600: #3d8264;
+  --green-700: #2f644d;
+  --green-800: #224937;
+  --green-900: #1e3a2f;
+  
+  /* Accent Colors */
+  --sage: #9db8a5;
+  --mint: #c1e1c1;
+  --forest: #2d5f3f;
+  --cream: #faf8f3;
 }
 
 @theme inline {
@@ -14,8 +32,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1a2e25;
+    --foreground: #e8f3ed;
   }
 }
 

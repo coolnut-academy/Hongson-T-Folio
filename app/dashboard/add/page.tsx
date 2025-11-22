@@ -6,9 +6,20 @@ import { useAuth } from '@/context/AuthContext';
 import { collection, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
-import { getEntriesCollection, APP_ID } from '@/lib/constants';
-import { Upload, X, PlusCircle, Image as ImageIcon } from 'lucide-react';
+import { getEntriesCollection } from '@/lib/constants';
 import { CATEGORIES } from '@/lib/constants';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  UploadCloud, 
+  X, 
+  Save, 
+  Loader2, 
+  Image as ImageIcon, 
+  Calendar, 
+  Type, 
+  FileText, 
+  ArrowLeft 
+} from 'lucide-react';
 
 export default function AddEntryPage() {
   const { userData } = useAuth();
@@ -23,7 +34,6 @@ export default function AddEntryPage() {
     dateEnd: new Date().toISOString().split('T')[0],
   });
 
-  // Separate state for File objects and preview URLs
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -44,27 +54,21 @@ export default function AddEntryPage() {
       return;
     }
 
-    // Store File objects
     const newFiles = [...imageFiles, ...files];
     setImageFiles(newFiles);
 
-    // Create preview URLs for immediate UI display
     files.forEach((file) => {
       const previewUrl = URL.createObjectURL(file);
       setImagePreviews((prev) => [...prev, previewUrl]);
     });
 
-    // Reset input to allow selecting the same file again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const removeImage = (index: number) => {
-    // Revoke the object URL to free memory
     URL.revokeObjectURL(imagePreviews[index]);
-    
-    // Remove from both arrays
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
@@ -86,33 +90,26 @@ export default function AddEntryPage() {
     setUploading(true);
 
     try {
-      // Upload images to Firebase Storage and get download URLs
       const imageUrls: string[] = [];
       
       for (const file of imageFiles) {
-        // Create storage reference: evidence/{userId}/{timestamp}_{filename}
         const storageRef = ref(
           storage,
           `evidence/${userData.id}/${Date.now()}_${file.name}`
         );
-        
-        // Upload the file
         await uploadBytes(storageRef, file);
-        
-        // Get the download URL
         const downloadURL = await getDownloadURL(storageRef);
         imageUrls.push(downloadURL);
       }
 
-      // Save entry to Firestore with Storage URLs
       const entryData = {
-        userId: userData.id, // Use username as userId
+        userId: userData.id,
         category: formData.category,
         title: formData.title,
         description: formData.description,
         dateStart: formData.dateStart,
         dateEnd: formData.dateEnd || formData.dateStart,
-        images: imageUrls, // Store Firebase Storage URLs
+        images: imageUrls,
         timestamp: Date.now(),
       };
 
@@ -122,175 +119,261 @@ export default function AddEntryPage() {
         entryData
       );
 
-      // Clean up preview URLs
       imagePreviews.forEach((url) => URL.revokeObjectURL(url));
-
-      // Redirect to dashboard
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error adding entry:', err);
-      setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      const errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+      setError(errorMessage);
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-          <PlusCircle className="mr-2" /> เพิ่มข้อมูลผลงาน
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Category */}
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-              หมวดหมู่ <span className="text-red-500">*</span>
-            </label>
-              <select
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                required
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                <option value="">เลือกหมวดหมู่</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">เพิ่มผลงานใหม่</h1>
+            <p className="text-slate-500 mt-1 text-sm">บันทึกข้อมูลการปฏิบัติงานเพื่อเก็บเป็นหลักฐาน</p>
           </div>
+          <button
+            onClick={() => router.back()}
+            className="hidden sm:flex items-center gap-2 px-4 py-2 text-slate-600 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-green-600 transition-colors text-sm font-medium"
+          >
+            <ArrowLeft className="w-4 h-4" /> ย้อนกลับ
+          </button>
+        </div>
 
-          {/* Title */}
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-              ชื่องาน <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
-              required
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              placeholder="กรอกชื่องาน"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              คำอธิบาย
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              rows={4}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              placeholder="กรอกคำอธิบายงาน"
-            />
-          </div>
-
-          {/* Date Range */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="dateStart" className="block text-sm font-medium text-gray-700 mb-2">
-                วันที่เริ่มต้น <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                id="dateStart"
-                name="dateStart"
-                value={formData.dateStart}
-                onChange={handleInputChange}
-                required
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label htmlFor="dateEnd" className="block text-sm font-medium text-gray-700 mb-2">
-                วันที่สิ้นสุด
-              </label>
-              <input
-                type="date"
-                id="dateEnd"
-                name="dateEnd"
-                value={formData.dateEnd}
-                onChange={handleInputChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Image Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">รูปภาพ (สูงสุด 4 รูป)</label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition">
-              <div className="space-y-1 text-center">
-                <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
-                  <span>อัปโหลดไฟล์</span>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    className="sr-only"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                  />
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* 📝 Left Column: Input Fields */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+              
+              {/* Category Selection */}
+              <div className="space-y-2">
+                <label htmlFor="category" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+                  หมวดหมู่ <span className="text-rose-500">*</span>
                 </label>
+                <div className="relative">
+                  <select
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all appearance-none"
+                  >
+                    <option value="">เลือกหมวดหมู่</option>
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Title Input */}
+              <div className="space-y-2">
+                <label htmlFor="title" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+                  ชื่องาน <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative group">
+                  <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-green-600 transition-colors" />
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="เช่น เข้าร่วมอบรมเชิงปฏิบัติการ..."
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              {/* Date Range Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label htmlFor="dateStart" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+                    วันที่เริ่มต้น <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative group">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-green-600 transition-colors" />
+                    <input
+                      type="date"
+                      id="dateStart"
+                      name="dateStart"
+                      value={formData.dateStart}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="dateEnd" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+                    วันที่สิ้นสุด
+                  </label>
+                  <div className="relative group">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-green-600 transition-colors" />
+                    <input
+                      type="date"
+                      id="dateEnd"
+                      name="dateEnd"
+                      value={formData.dateEnd}
+                      onChange={handleInputChange}
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Description Area */}
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+                  รายละเอียดการปฏิบัติงาน
+                </label>
+                <div className="relative group">
+                  <FileText className="absolute left-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-green-600 transition-colors" />
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows={4}
+                    placeholder="อธิบายรายละเอียดของงานเพิ่มเติม..."
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all resize-none placeholder:text-slate-400"
+                  />
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-2 mt-4">
-              {imagePreviews.map((previewUrl, idx) => (
-                <div key={idx} className="relative group aspect-square bg-gray-100 rounded overflow-hidden">
-                  <img src={previewUrl} alt={`preview ${idx + 1}`} className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(idx)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+          </div>
+
+          {/* 🖼️ Right Column: Image Management */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-full flex flex-col">
+              <div className="mb-4">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  หลักฐานรูปภาพ
+                </label>
+                <p className="text-xs text-slate-400 mt-1">สูงสุด 4 รูป (แนะนำรูปแนวนอน)</p>
+              </div>
+
+              {/* Upload Dropzone Style */}
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-green-100 bg-green-50/50 hover:bg-green-50 hover:border-green-300 rounded-2xl p-6 text-center cursor-pointer transition-all group mb-6"
+              >
+                <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                  <UploadCloud className="w-6 h-6 text-green-500" />
                 </div>
-              ))}
+                <p className="text-sm font-medium text-green-900">คลิกเพื่อเลือกรูปภาพ</p>
+                <input
+                  ref={fileInputRef}
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
+              </div>
+
+              {/* Image Previews Grid */}
+              <div className="space-y-3 flex-1">
+                <AnimatePresence mode='popLayout'>
+                  {imagePreviews.map((previewUrl, idx) => (
+                    <motion.div
+                      key={previewUrl}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      className="relative group rounded-xl overflow-hidden shadow-sm border border-slate-100 aspect-video bg-slate-100"
+                    >
+                      <img 
+                        src={previewUrl} 
+                        alt={`preview ${idx + 1}`} 
+                        className="w-full h-full object-cover" 
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-2 right-2 w-7 h-7 bg-white/90 backdrop-blur text-rose-500 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white hover:scale-110"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                
+                {imagePreviews.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-32 text-slate-300 border border-slate-100 rounded-xl bg-slate-50/50">
+                    <ImageIcon className="w-8 h-8 mb-2 opacity-50" />
+                    <p className="text-xs">ยังไม่มีรูปภาพ</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
-          )}
+          {/* Action Buttons */}
+          <div className="lg:col-span-3 space-y-4">
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Submit Button */}
-          <div className="flex justify-end pt-4">
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard')}
-              className="mr-3 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="submit"
-              disabled={uploading}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {uploading ? 'กำลังอัปโหลดรูปภาพ...' : 'บันทึก'}
-            </button>
+            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                className="px-6 py-3.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-medium transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={uploading}
+                className="px-8 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed min-w-[160px]"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> กำลังบันทึก...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" /> บันทึกข้อมูล
+                  </>
+                )}
+              </motion.button>
+            </div>
           </div>
+
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
-

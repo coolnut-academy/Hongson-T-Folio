@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { LayoutDashboard, Users, FileCheck, LogOut } from 'lucide-react';
+import Image from 'next/image';
 
 export default function AdminLayout({
   children,
@@ -29,7 +30,7 @@ export default function AdminLayout({
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">กำลังโหลด...</p>
         </div>
       </div>
@@ -55,6 +56,15 @@ export default function AdminLayout({
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 text-white flex-shrink-0 flex flex-col">
         <div className="p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <Image 
+              src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
+              alt="Hongson Logo" 
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+          </div>
           <h1 className="text-xl font-bold text-white">Hongson T-Folio</h1>
           <p className="text-gray-400 text-sm mt-1">ระบบจัดการ</p>
         </div>
@@ -68,7 +78,7 @@ export default function AdminLayout({
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
                   isActive
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-green-600 text-white'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`}
               >
@@ -110,7 +120,7 @@ export default function AdminLayout({
                     key={item.href}
                     href={item.href}
                     className={`whitespace-nowrap px-4 py-2 rounded-md transition ${
-                      isActive ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'
+                      isActive ? 'bg-green-600' : 'bg-gray-800 hover:bg-gray-700'
                     }`}
                   >
                     {item.label}

@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
-import { GraduationCap, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import Image from 'next/image';
 
 export default function Home() {
   const router = useRouter();
@@ -27,11 +28,11 @@ export default function Home() {
 
   // Show loading state while checking auth
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-green-50 via-white to-emerald-50">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"
+          className="absolute -top-40 -right-40 w-80 h-80 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 90, 0],
@@ -43,7 +44,7 @@ export default function Home() {
           }}
         />
         <motion.div
-          className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"
+          className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30"
           animate={{
             scale: [1.2, 1, 1.2],
             rotate: [90, 0, 90],
@@ -55,7 +56,7 @@ export default function Home() {
           }}
         />
         <motion.div
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
           animate={{
             scale: [1, 1.3, 1],
           }}
@@ -77,9 +78,9 @@ export default function Home() {
         }}
         className="relative z-10"
       >
-        <div className="relative backdrop-blur-xl bg-white/70 rounded-3xl shadow-2xl shadow-indigo-100/50 border border-white/20 p-12 min-w-[360px]">
+        <div className="relative backdrop-blur-xl bg-white/70 rounded-3xl shadow-2xl shadow-green-100/50 border border-white/20 p-12 min-w-[360px]">
           {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-teal-500/5 rounded-3xl" />
           
           <div className="relative text-center space-y-6">
             {/* Icon Section */}
@@ -97,10 +98,16 @@ export default function Home() {
                     repeat: Infinity,
                     ease: "linear",
                   }}
-                  className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur-xl opacity-30"
+                  className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full blur-xl opacity-30"
                 />
-                <div className="relative bg-gradient-to-br from-indigo-500 to-purple-600 p-5 rounded-2xl shadow-lg">
-                  <GraduationCap className="w-12 h-12 text-white" strokeWidth={1.5} />
+                <div className="relative bg-white p-3 rounded-2xl shadow-lg">
+                  <Image 
+                    src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
+                    alt="Hongson Logo" 
+                    width={64}
+                    height={64}
+                    className="object-contain"
+                  />
                 </div>
               </div>
             </motion.div>
@@ -112,10 +119,10 @@ export default function Home() {
               transition={{ delay: 0.3, duration: 0.5 }}
               className="space-y-2"
             >
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 Hongson T-Folio
               </h1>
-              <p className="text-sm text-gray-500 font-medium">
+              <p className="text-sm text-gray-600 font-medium">
                 Teacher Portfolio & Evaluation
               </p>
             </motion.div>
@@ -130,7 +137,7 @@ export default function Home() {
               <div className="relative">
                 {/* Outer Ring */}
                 <motion.div
-                  className="w-16 h-16 rounded-full border-4 border-indigo-100"
+                  className="w-16 h-16 rounded-full border-4 border-green-100"
                   animate={{ rotate: 360 }}
                   transition={{
                     duration: 1.5,
@@ -140,7 +147,7 @@ export default function Home() {
                 />
                 {/* Gradient Spinner */}
                 <motion.div
-                  className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-indigo-600 border-r-purple-600"
+                  className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-green-600 border-r-emerald-600"
                   animate={{ rotate: 360 }}
                   transition={{
                     duration: 1,
@@ -150,7 +157,7 @@ export default function Home() {
                 />
                 {/* Center Dot */}
                 <motion.div
-                  className="absolute inset-0 m-auto w-2 h-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"
+                  className="absolute inset-0 m-auto w-2 h-2 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full"
                   animate={{
                     scale: [1, 1.2, 1],
                     opacity: [0.5, 1, 0.5],
@@ -195,7 +202,7 @@ export default function Home() {
                     ease: "easeInOut",
                   }}
                 >
-                  <Sparkles className="w-4 h-4 text-indigo-500" />
+                  <Sparkles className="w-4 h-4 text-green-500" />
                 </motion.div>
               </div>
               <motion.div
@@ -206,7 +213,7 @@ export default function Home() {
                 {[0, 1, 2].map((i) => (
                   <motion.div
                     key={i}
-                    className="w-1.5 h-1.5 bg-indigo-400 rounded-full"
+                    className="w-1.5 h-1.5 bg-green-400 rounded-full"
                     animate={{
                       y: [0, -8, 0],
                       opacity: [0.3, 1, 0.3],
