@@ -63,8 +63,7 @@ export default function ReportView({
       <style jsx global>{`
         @media print {
           @page {
-            /* Reserve extra top margin so browser header/footer never overlap report text */
-            margin: 2.5cm 1.5cm 1.5cm 1.5cm;
+            margin: 1.5cm;
             size: A4;
           }
           body {
@@ -77,6 +76,7 @@ export default function ReportView({
             border: none !important;
             padding: 0 !important;
             width: 100% !important;
+            min-height: auto !important;
           }
           .no-print {
             display: none !important;
@@ -84,10 +84,12 @@ export default function ReportView({
           .page-break {
             page-break-inside: avoid;
             break-inside: avoid;
+            page-break-after: always;
+            break-after: page;
           }
-          .page-break + .page-break {
-            page-break-before: always;
-            break-before: page;
+          .page-break:last-child {
+            page-break-after: auto;
+            break-after: auto;
           }
           .print-image-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -97,6 +99,9 @@ export default function ReportView({
             border-width: 1px;
             border-color: #e2e8f0 !important;
             page-break-inside: avoid;
+          }
+          .report-content-wrapper {
+            padding-top: 1.25rem;
           }
           /* Ensure images print but don't waste ink on backgrounds */
           img {
@@ -111,7 +116,7 @@ export default function ReportView({
         
         {/* Header */}
         <div className="border-b-2 border-slate-800 pb-6 mb-8">
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start print:mt-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-slate-800">
                 <FileText className="w-6 h-6" />
@@ -157,7 +162,7 @@ export default function ReportView({
           </div>
         ) : (
           /* List Items */
-          <div className="space-y-8">
+          <div className="space-y-8 report-content-wrapper">
             <AnimatePresence initial={false}>
               {items.map((entry, idx) => (
                 <motion.div
