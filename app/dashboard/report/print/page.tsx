@@ -9,7 +9,6 @@ import { getEntriesCollection, getApprovalsCollection } from '@/lib/constants';
 import { Printer, Loader2, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 
 // V2: Entry type with conditional fields
 interface Entry {
@@ -34,7 +33,7 @@ interface Approval {
   directorComment?: string;
 }
 
-// Smart Image Grid Component
+// Smart Image Grid Component with optimized image loading
 const SmartImageGrid = ({ images }: { images: string[] }) => {
   const count = images.length;
 
@@ -48,6 +47,8 @@ const SmartImageGrid = ({ images }: { images: string[] }) => {
           src={images[0]} 
           alt="Evidence 1" 
           className="w-full h-full object-contain"
+          style={{ maxWidth: '100%', maxHeight: '100%' }}
+          loading="eager"
         />
       </div>
     );
@@ -62,6 +63,8 @@ const SmartImageGrid = ({ images }: { images: string[] }) => {
             src={images[0]} 
             alt="Evidence 1" 
             className="w-full h-full object-cover"
+            style={{ maxWidth: '800px', maxHeight: '100%' }}
+            loading="eager"
           />
         </div>
         <div className="flex-1 w-full bg-gray-50 rounded border border-gray-200 overflow-hidden">
@@ -69,6 +72,8 @@ const SmartImageGrid = ({ images }: { images: string[] }) => {
             src={images[1]} 
             alt="Evidence 2" 
             className="w-full h-full object-cover"
+            style={{ maxWidth: '800px', maxHeight: '100%' }}
+            loading="eager"
           />
         </div>
       </div>
@@ -85,6 +90,8 @@ const SmartImageGrid = ({ images }: { images: string[] }) => {
               src={images[0]} 
               alt="Evidence 1" 
               className="w-full h-full object-cover"
+              style={{ maxWidth: '800px', maxHeight: '100%' }}
+              loading="eager"
             />
           </div>
           <div className="bg-gray-50 rounded border border-gray-200 overflow-hidden">
@@ -92,6 +99,8 @@ const SmartImageGrid = ({ images }: { images: string[] }) => {
               src={images[1]} 
               alt="Evidence 2" 
               className="w-full h-full object-cover"
+              style={{ maxWidth: '800px', maxHeight: '100%' }}
+              loading="eager"
             />
           </div>
         </div>
@@ -101,6 +110,8 @@ const SmartImageGrid = ({ images }: { images: string[] }) => {
               src={images[2]} 
               alt="Evidence 3" 
               className="w-full h-full object-cover"
+              style={{ maxWidth: '800px', maxHeight: '100%' }}
+              loading="eager"
             />
           </div>
         </div>
@@ -117,6 +128,8 @@ const SmartImageGrid = ({ images }: { images: string[] }) => {
             src={img} 
             alt={`Evidence ${idx + 1}`} 
             className="w-full h-full object-cover"
+            style={{ maxWidth: '800px', maxHeight: '100%' }}
+            loading="eager"
           />
         </div>
       ))}
@@ -195,26 +208,23 @@ const EntryPage = ({ entry, index }: { entry: Entry; index: number }) => {
   );
 };
 
-// Approval Signature Sheet (Last Page)
-const ApprovalSheet = ({ 
+// V2: หน้าที่ 1 - หัวเอกสารอนุมัติ (แยกออกมาเป็นหน้าเดียว)
+const ApprovalHeaderPage = ({ 
   user, 
-  month, 
-  approval 
+  month,
+  totalEntries 
 }: { 
   user: { name: string }; 
-  month: string; 
-  approval: Approval | null;
+  month: string;
+  totalEntries: number;
 }) => {
   const monthLabel = new Date(month + '-01').toLocaleDateString('th-TH', { 
     month: 'long', 
     year: 'numeric' 
   });
 
-  const deputyComment = approval?.deputyComment || "รับทราบ ขอบคุณมาก";
-  const directorComment = approval?.directorComment || "รับทราบ ขอบคุณมาก";
-
   return (
-    <div className="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto print:break-before-page flex flex-col justify-between page-break-before-always">
+    <div className="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto flex flex-col justify-center page-break-after-always">
       <div>
         <h1 className="text-3xl font-bold text-center mb-12 mt-10">
           บันทึกข้อความอนุมัติผลงาน
@@ -243,37 +253,50 @@ const ApprovalSheet = ({
         <p className="text-lg mt-8 indent-16 leading-relaxed text-justify px-10">
           ข้าพเจ้า <span className="font-bold underline">{user.name}</span>{' '}
           ขอรายงานผลการปฏิบัติงานประจำเดือน <span className="font-bold">{monthLabel}</span>{' '}
-          ดังเอกสารแนบ จำนวนทั้งสิ้น <span className="font-bold">......</span> รายการ{' '}
+          ดังเอกสารแนบ จำนวนทั้งสิ้น <span className="font-bold text-indigo-600">{totalEntries}</span> รายการ{' '}
           จึงเรียนมาเพื่อโปรดพิจารณา
         </p>
         
-        <div className="mt-12 text-center">
+        <div className="mt-16 text-center">
           <p className="text-lg">ลงชื่อ ........................................</p>
           <p className="text-base mt-2">( {user.name} )</p>
           <p className="text-sm text-gray-600 mt-1">ผู้รายงาน</p>
         </div>
       </div>
+    </div>
+  );
+};
 
-      {/* Executive Comments Section */}
-      <div className="space-y-6 mb-10">
+// V2: หน้าที่ 2 - Comments ของผู้บริหารทั้งสองท่าน (อยู่ในหน้าเดียวกัน)
+const ApprovalCommentsPage = ({ 
+  approval 
+}: { 
+  approval: Approval | null;
+}) => {
+  const deputyComment = approval?.deputyComment || "รับทราบ ขอบคุณมาก";
+  const directorComment = approval?.directorComment || "รับทราบ ขอบคุณมาก";
+
+  return (
+    <div className="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto flex flex-col justify-center page-break-after-always overflow-hidden">
+      {/* Executive Comments Section - อยู่ในหน้าเดียวกัน */}
+      <div className="space-y-6">
         {/* Deputy Comment */}
-        <div className="border-2 border-gray-300 p-5 rounded-lg bg-gray-50">
+        <div className="border-2 border-gray-300 p-5 rounded-lg">
           <p className="font-bold text-lg underline mb-3 text-gray-800">
             ความเห็นรองผู้อำนวยการฝ่ายบริหารงานบุคคล
           </p>
           <div className="bg-white p-4 rounded border border-gray-200 min-h-[80px]">
             <p className="text-gray-800 italic font-serif text-base leading-relaxed">
-              "{deputyComment}"
+              &ldquo;{deputyComment}&rdquo;
             </p>
           </div>
           <div className="mt-8 text-center">
             <div className="h-16 flex items-end justify-center mb-2">
-              <Image 
+              <img 
                 src="/sign/deputy.png" 
                 alt="Deputy Director Signature" 
-                width={120} 
-                height={60}
                 className="object-contain"
+                style={{ maxWidth: '150px', maxHeight: '60px' }}
               />
             </div>
             <p className="text-base">ลงชื่อ ........................................</p>
@@ -283,23 +306,22 @@ const ApprovalSheet = ({
         </div>
         
         {/* Director Comment */}
-        <div className="border-2 border-gray-300 p-5 rounded-lg bg-gray-50">
+        <div className="border-2 border-gray-300 p-5 rounded-lg mt-6">
           <p className="font-bold text-lg underline mb-3 text-gray-800">
             ความเห็นผู้อำนวยการโรงเรียน
           </p>
           <div className="bg-white p-4 rounded border border-gray-200 min-h-[80px]">
             <p className="text-gray-800 italic font-serif text-base leading-relaxed">
-              "{directorComment}"
+              &ldquo;{directorComment}&rdquo;
             </p>
           </div>
           <div className="mt-8 text-center">
             <div className="h-16 flex items-end justify-center mb-2">
-              <Image 
+              <img 
                 src="/sign/admin.png" 
                 alt="Director Signature" 
-                width={120} 
-                height={60}
                 className="object-contain"
+                style={{ maxWidth: '150px', maxHeight: '60px' }}
               />
             </div>
             <p className="text-base">ลงชื่อ ........................................</p>
@@ -431,9 +453,17 @@ function PrintPageContent() {
           }
           .page-break-after-always {
             page-break-after: always;
+            break-after: page;
           }
           .page-break-before-always {
             page-break-before: always;
+            break-before: page;
+          }
+          /* Ensure images load in print */
+          img {
+            max-width: 100%;
+            display: block;
+            page-break-inside: avoid;
           }
         }
       `}</style>
@@ -489,12 +519,15 @@ function PrintPageContent() {
                   <EntryPage key={entry.id} entry={entry} index={index} />
                 ))}
                 
-                {/* Approval Signature Sheet */}
-                <ApprovalSheet 
+                {/* V2: หน้าที่ 1 - หัวเอกสารอนุมัติ (แยกหน้า) */}
+                <ApprovalHeaderPage 
                   user={userData || { name: '' }} 
                   month={approvalMonth}
-                  approval={approval}
+                  totalEntries={filteredEntries.length}
                 />
+                
+                {/* V2: หน้าที่ 2 - Comments ทั้งสองอยู่ในหน้าเดียวกัน */}
+                <ApprovalCommentsPage approval={approval} />
               </>
             )}
           </div>
@@ -519,4 +552,3 @@ export default function PrintPage() {
     </Suspense>
   );
 }
-
