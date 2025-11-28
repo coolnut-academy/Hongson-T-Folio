@@ -9,6 +9,7 @@ import { getEntriesCollection, getApprovalsCollection } from '@/lib/constants';
 import { Printer, Loader2, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 // V2: Entry type with conditional fields
 interface Entry {
@@ -267,7 +268,13 @@ const ApprovalSheet = ({
           </div>
           <div className="mt-8 text-center">
             <div className="h-16 flex items-end justify-center mb-2">
-              {/* Signature placeholder */}
+              <Image 
+                src="/sign/deputy.png" 
+                alt="Deputy Director Signature" 
+                width={120} 
+                height={60}
+                className="object-contain"
+              />
             </div>
             <p className="text-base">ลงชื่อ ........................................</p>
             <p className="text-base mt-2">( ............................................... )</p>
@@ -287,7 +294,13 @@ const ApprovalSheet = ({
           </div>
           <div className="mt-8 text-center">
             <div className="h-16 flex items-end justify-center mb-2">
-              {/* Signature placeholder */}
+              <Image 
+                src="/sign/admin.png" 
+                alt="Director Signature" 
+                width={120} 
+                height={60}
+                className="object-contain"
+              />
             </div>
             <p className="text-base">ลงชื่อ ........................................</p>
             <p className="text-base mt-2">( ............................................... )</p>
