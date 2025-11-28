@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getEntriesCollection, getApprovalsCollection } from '@/lib/constants';
-import { Printer, Loader2, ArrowLeft } from 'lucide-react';
+import { Printer, Loader2, ArrowLeft, FileDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 
@@ -214,7 +214,7 @@ const ApprovalHeaderPage = ({
   month,
   totalEntries 
 }: { 
-  user: { name: string }; 
+  user: { name: string; position?: string }; 
   month: string;
   totalEntries: number;
 }) => {
@@ -224,41 +224,59 @@ const ApprovalHeaderPage = ({
   });
 
   return (
-    <div className="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto flex flex-col justify-center page-break-after-always">
-      <div>
-        <h1 className="text-3xl font-bold text-center mb-12 mt-10">
+    <div className="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto flex flex-col justify-start page-break-after-always">
+      <div className="space-y-6">
+        {/* หัวเรื่อง */}
+        <h1 className="text-2xl font-bold text-center mb-8">
           บันทึกข้อความอนุมัติผลงาน
         </h1>
         
-        <div className="text-lg space-y-4 pl-10 mb-8">
+        {/* ส่วนหัวเอกสาร */}
+        <div className="space-y-2 text-base">
           <p>
-            <strong>ส่วนราชการ:</strong> โรงเรียนห้วยยางวิทยาคม
+            <strong>ส่วนราชการ</strong> โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
           </p>
           <p>
-            <strong>ที่:</strong> .................................{' '}
-            <strong>วันที่:</strong> {new Date().toLocaleDateString('th-TH', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
-            })}
+            <strong>ที่</strong> ...................................................... <strong>วันที่</strong> ....................
           </p>
           <p>
-            <strong>เรื่อง:</strong> รายงานผลการปฏิบัติงาน ประจำเดือน {monthLabel}
-          </p>
-          <p>
-            <strong>เรียน:</strong> ผู้อำนวยการโรงเรียน
+            <strong>เรื่อง</strong> รายงานผลการปฏิบัติงาน ประจำเดือน {monthLabel}
           </p>
         </div>
+
+        {/* เรียน */}
+        <p className="text-base mt-6">
+          <strong>เรียน</strong> ผู้อำนวยการโรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
+        </p>
         
-        <p className="text-lg mt-8 indent-16 leading-relaxed text-justify px-10">
-          ข้าพเจ้า <span className="font-bold underline">{user.name}</span>{' '}
-          ขอรายงานผลการปฏิบัติงานประจำเดือน <span className="font-bold">{monthLabel}</span>{' '}
-          ดังเอกสารแนบ จำนวนทั้งสิ้น <span className="font-bold text-indigo-600">{totalEntries}</span> รายการ{' '}
+        {/* เนื้อหาหลัก - ย่อหน้าที่ 1 */}
+        <p className="text-base leading-relaxed text-justify indent-12 mt-4">
+          ตามที่ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ ได้มอบหมายภาระงานให้ข้าราชการครูและบุคลากรทางการศึกษา 
+          ปฏิบัติหน้าที่ในการจัดการเรียนการสอน การดูแลช่วยเหลือนักเรียน งานบริหารทั่วไป และงานอื่นๆ ที่ได้รับมอบหมาย 
+          เพื่อขับเคลื่อนการดำเนินงานของสถานศึกษาให้เป็นไปอย่างมีประสิทธิภาพ 
+          และให้มีการรายงานผลการปฏิบัติงานเป็นประจำทุกเดือน นั้น
+        </p>
+        
+        {/* เนื้อหาหลัก - ย่อหน้าที่ 2 */}
+        <p className="text-base leading-relaxed text-justify indent-12">
+          บัดนี้ ข้าพเจ้า <span className="font-semibold">{user.name}</span> ตำแหน่ง{' '}
+          <span className="font-semibold">{user.position || '...........................'}</span>{' '}
+          ได้ดำเนินการปฏิบัติหน้าที่ตามภาระงานที่ได้รับมอบหมาย ประจำเดือน {monthLabel} เสร็จสิ้นเรียบร้อยแล้ว 
+          โดยมีรายละเอียดผลการดำเนินงานครอบคลุมด้านการจัดการเรียนรู้ ด้านการบริหารจัดการชั้นเรียน 
+          และด้านการพัฒนาตนเองและวิชาชีพ ดังปรากฏตามเอกสารแนบ จำนวนทั้งสิ้น{' '}
+          <span className="font-bold text-indigo-600">{totalEntries}</span> รายการ{' '}
+          เพื่อใช้เป็นข้อมูลในการตรวจสอบ ติดตาม และประเมินผลการปฏิบัติงาน 
+          ให้เป็นไปตามระเบียบและมาตรฐานวิชาชีพต่อไป
+        </p>
+        
+        {/* ปิดท้าย */}
+        <p className="text-base leading-relaxed text-justify indent-12 mt-4">
           จึงเรียนมาเพื่อโปรดพิจารณา
         </p>
         
-        <div className="mt-16 text-center">
-          <p className="text-lg">ลงชื่อ ........................................</p>
+        {/* ส่วนลายเซ็น */}
+        <div className="mt-12 text-center">
+          <p className="text-base">ลงชื่อ ........................................</p>
           <p className="text-base mt-2">( {user.name} )</p>
           <p className="text-sm text-gray-600 mt-1">ผู้รายงาน</p>
         </div>
@@ -291,16 +309,16 @@ const ApprovalCommentsPage = ({
             </p>
           </div>
           <div className="mt-8 text-center">
-            <div className="h-16 flex items-end justify-center mb-2">
+            <div className="h-20 flex items-end justify-center mb-2">
               <img 
                 src="/sign/deputy.png" 
                 alt="Deputy Director Signature" 
                 className="object-contain"
-                style={{ maxWidth: '150px', maxHeight: '60px' }}
+                style={{ maxWidth: '180px', maxHeight: '72px' }}
               />
             </div>
             <p className="text-base">ลงชื่อ ........................................</p>
-            <p className="text-base mt-2">( ............................................... )</p>
+            <p className="text-base mt-2">( นางลลิภัทร  สืบเมือง )</p>
             <p className="text-sm text-gray-600 mt-1">รองผู้อำนวยการฝ่ายบริหารงานบุคคล</p>
           </div>
         </div>
@@ -316,17 +334,17 @@ const ApprovalCommentsPage = ({
             </p>
           </div>
           <div className="mt-8 text-center">
-            <div className="h-16 flex items-end justify-center mb-2">
+            <div className="h-20 flex items-end justify-center mb-2">
               <img 
                 src="/sign/admin.png" 
                 alt="Director Signature" 
                 className="object-contain"
-                style={{ maxWidth: '150px', maxHeight: '60px' }}
+                style={{ maxWidth: '180px', maxHeight: '72px' }}
               />
             </div>
             <p className="text-base">ลงชื่อ ........................................</p>
-            <p className="text-base mt-2">( ............................................... )</p>
-            <p className="text-sm text-gray-600 mt-1">ผู้อำนวยการโรงเรียน</p>
+            <p className="text-base mt-2">( นายอัมพวาร  อิตุพร )</p>
+            <p className="text-sm text-gray-600 mt-1">ผู้อำนวยการโรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ</p>
           </div>
         </div>
       </div>
@@ -421,6 +439,13 @@ function PrintPageContent() {
     ? `${filterYear}-${String(filterMonth).padStart(2, '0')}`
     : '';
 
+  // Handle Save as PDF
+  const handleSavePDF = () => {
+    // Use window.print() which allows users to save as PDF
+    // Modern browsers support "Save as PDF" in print dialog
+    window.print();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -490,14 +515,25 @@ function PrintPageContent() {
                 </div>
               </div>
               
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => window.print()}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all"
-              >
-                <Printer className="w-5 h-5" />
-                พิมพ์เอกสาร
-              </motion.button>
+              <div className="flex items-center gap-3">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleSavePDF}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/30 transition-all"
+                >
+                  <FileDown className="w-5 h-5" />
+                  บันทึกเป็น PDF
+                </motion.button>
+                
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all"
+                >
+                  <Printer className="w-5 h-5" />
+                  พิมพ์เอกสาร
+                </motion.button>
+              </div>
             </div>
           </div>
         </div>
@@ -521,7 +557,7 @@ function PrintPageContent() {
                 
                 {/* V2: หน้าที่ 1 - หัวเอกสารอนุมัติ (แยกหน้า) */}
                 <ApprovalHeaderPage 
-                  user={userData || { name: '' }} 
+                  user={userData || { name: '', position: '' }} 
                   month={approvalMonth}
                   totalEntries={filteredEntries.length}
                 />
