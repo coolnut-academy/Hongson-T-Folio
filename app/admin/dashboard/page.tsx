@@ -3,12 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Users, FileText, Building2, BarChart3, ChevronDown, LucideIcon, Download, Calendar, TrendingUp, CheckCircle2, Printer } from 'lucide-react';
+import { Users, FileText, Building2, BarChart3, ChevronDown, LucideIcon, Download, Calendar, TrendingUp, CheckCircle2, Printer, LayoutTemplate } from 'lucide-react';
 import { getUsersCollection, getEntriesCollection, getApprovalsCollection, DEPARTMENTS, CATEGORIES } from '@/lib/constants';
 import { motion } from 'framer-motion';
 import { handlePrint } from '@/lib/pdfUtils';
 import AdminStatsPdfDocument from '@/components/pdf/AdminStatsPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 // --- Types ---
 
@@ -71,7 +72,10 @@ const SkeletonLoader = () => (
         <div key={i} className="h-32 bg-slate-200 rounded-3xl"></div>
       ))}
     </div>
-    <div className="h-16 bg-slate-200 rounded-2xl"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="h-80 bg-slate-200 rounded-3xl"></div>
+      <div className="h-80 bg-slate-200 rounded-3xl"></div>
+    </div>
     <div className="h-96 bg-slate-200 rounded-3xl"></div>
   </div>
 );
@@ -86,6 +90,21 @@ interface DepartmentStats {
   approvedByDirector: number;
   fullyApproved: number;
 }
+
+// V2: Chart color palettes
+const CATEGORY_COLORS = [
+  '#6366f1', // Indigo
+  '#8b5cf6', // Violet
+  '#ec4899', // Pink
+  '#f59e0b', // Amber
+  '#10b981', // Emerald
+  '#3b82f6', // Blue
+];
+
+const MONTH_NAMES_TH = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
 
 export default function AdminDashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -188,6 +207,56 @@ export default function AdminDashboardPage() {
     });
   }, [entries, filterType, selectedYear, selectedMonth, dateStart, dateEnd, selectedCategory]);
 
+  // V2: Prepare data for Bar Chart (Entries by Category)
+  const categoryChartData = useMemo(() => {
+    const categoryCount: Record<string, number> = {};
+    
+    CATEGORIES.forEach(cat => {
+      categoryCount[cat] = 0;
+    });
+    
+    filteredEntries.forEach(entry => {
+      if (categoryCount[entry.category] !== undefined) {
+        categoryCount[entry.category]++;
+      }
+    });
+    
+    return CATEGORIES.map((cat, idx) => ({
+      name: cat.length > 20 ? cat.substring(0, 17) + '...' : cat,
+      fullName: cat,
+      count: categoryCount[cat],
+      color: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
+    }));
+  }, [filteredEntries]);
+
+  // V2: Prepare data for Line Chart (Monthly Trends)
+  const monthlyChartData = useMemo(() => {
+    // Get all entries (not filtered by time) for year view
+    const yearEntries = entries.filter(e => {
+      const entryDate = new Date(e.dateStart);
+      return entryDate.getFullYear() === selectedYear;
+    });
+    
+    const monthlyCount: Record<number, number> = {};
+    
+    // Initialize all months
+    for (let i = 1; i <= 12; i++) {
+      monthlyCount[i] = 0;
+    }
+    
+    yearEntries.forEach(entry => {
+      const entryDate = new Date(entry.dateStart);
+      const month = entryDate.getMonth() + 1;
+      monthlyCount[month]++;
+    });
+    
+    return Array.from({ length: 12 }, (_, i) => ({
+      month: MONTH_NAMES_TH[i],
+      monthNum: i + 1,
+      count: monthlyCount[i + 1],
+    }));
+  }, [entries, selectedYear]);
+
   // Compute statistics by department
   const departmentStats = useMemo((): DepartmentStats[] => {
     return DEPARTMENTS.map((dept) => {
@@ -275,6 +344,21 @@ export default function AdminDashboardPage() {
   const totalSubmitted = new Set(filteredEntries.map((e) => e.userId)).size;
   const totalEntries = filteredEntries.length;
 
+  // Custom Tooltip for Charts
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white px-4 py-3 rounded-xl shadow-lg border border-slate-200">
+          <p className="text-sm font-bold text-slate-800 mb-1">{label}</p>
+          <p className="text-xs text-indigo-600 font-semibold">
+            จำนวน: <span className="text-lg">{payload[0].value}</span> รายการ
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   // --- Render ---
 
   if (loading) {
@@ -312,7 +396,7 @@ export default function AdminDashboardPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">ภาพรวมผู้บริหาร</h1>
-                <p className="text-slate-500 text-xs sm:text-sm">สถิติการส่งงานตามกลุ่มสาระการเรียนรู้</p>
+                <p className="text-slate-500 text-xs sm:text-sm">สถิติการส่งงานและแนวโน้มตามช่วงเวลา</p>
               </div>
               
               {/* Action Buttons */}
@@ -345,7 +429,7 @@ export default function AdminDashboardPage() {
               value={totalUsers} 
               subtitle="คน"
               icon={Users}
-              colorClass={{ bg: 'bg-blue-50', icon: 'text-blue-600', text: 'text-blue-600' }}
+              colorClass={{ bg: 'bg-indigo-50', icon: 'text-indigo-600', text: 'text-indigo-600' }}
             />
             <StatCard 
               title="บุคลากรที่ส่งงาน" 
@@ -359,15 +443,93 @@ export default function AdminDashboardPage() {
               value={totalEntries} 
               subtitle="รายการ"
               icon={FileText}
-              colorClass={{ bg: 'bg-green-50', icon: 'text-green-600', text: 'text-green-600' }}
+              colorClass={{ bg: 'bg-violet-50', icon: 'text-violet-600', text: 'text-violet-600' }}
             />
+          </motion.div>
+
+          {/* V2: Charts Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
+            {/* Bar Chart: Entries by Category */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <div className="flex items-center mb-4">
+                <BarChart3 className="w-5 h-5 mr-2 text-indigo-600" />
+                <h3 className="text-lg font-bold text-slate-800">สถิติแยกตามหมวดหมู่</h3>
+              </div>
+              <div className="h-64">
+                {totalEntries === 0 ? (
+                  <div className="h-full flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="text-center">
+                      <BarChart3 className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm text-slate-400">ไม่มีข้อมูล</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={categoryChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                        {categoryChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Line Chart: Monthly Submission Trends */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <div className="flex items-center mb-4">
+                <LayoutTemplate className="w-5 h-5 mr-2 text-indigo-600" />
+                <h3 className="text-lg font-bold text-slate-800">แนวโน้มการส่งงานรายเดือน</h3>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fontSize: 12, fill: '#64748b' }}
+                    />
+                    <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#6366f1" 
+                      strokeWidth={3}
+                      dot={{ fill: '#6366f1', r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-slate-500 text-center mt-2">
+                ปี พ.ศ. {selectedYear + 543}
+              </p>
+            </div>
           </motion.div>
 
           {/* Time Filter Controls */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.3 }}
             className="no-print bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4"
           >
             {/* Category Filter */}
@@ -497,11 +659,11 @@ export default function AdminDashboardPage() {
             </div>
           </motion.div>
 
-          {/* Statistics Report */}
+          {/* Statistics Report by Department */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.4 }}
             id="admin-stats-content"
             className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden print:shadow-none print:rounded-none"
           >

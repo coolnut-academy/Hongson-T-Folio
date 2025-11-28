@@ -7,7 +7,8 @@ import { db } from '@/lib/firebase';
 import { getEntriesCollection } from '@/lib/constants';
 import ReportView from '@/components/ReportView';
 import { motion } from 'framer-motion';
-import { Printer, Calendar, Filter, FileText, Download } from 'lucide-react';
+import { Printer, Calendar, Filter, FileText, Download, FileCheck } from 'lucide-react';
+import Link from 'next/link';
 import { handlePrint, prepareEntriesForPdf } from '@/lib/pdfUtils';
 import ReportPdfDocument, { type ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
@@ -26,6 +27,11 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true);
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
+  
+  // V2: For print page params
+  const today = new Date();
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
 
   // --- Logic: Fetch Data (Preserved) ---
   useEffect(() => {
@@ -166,6 +172,17 @@ export default function ReportPage() {
             
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
+              <Link 
+                href={`/dashboard/report/print?year=${selectedYear}&month=${selectedMonth}`}
+                className="flex-1 sm:flex-initial"
+              >
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full px-5 py-3 sm:py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all"
+                >
+                  <FileCheck className="w-4 h-4" /> รายงานอย่างเป็นทางการ
+                </motion.button>
+              </Link>
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSavePDF}
@@ -185,40 +202,76 @@ export default function ReportPage() {
 
           {/* Toolbar / Filters - Mobile Optimized */}
           <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            <div className="flex items-center gap-2 text-green-600 font-semibold text-xs sm:text-sm">
-              <Filter className="w-3 h-3 sm:w-4 sm:h-4" /> ตัวกรองช่วงเวลา
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">ตั้งแต่</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
-                  <input
-                    type="date"
-                    value={filterDateStart}
-                    onChange={(e) => setFilterDateStart(e.target.value)}
-                    className="w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
-                  />
-                </div>
+            {/* V2: Month/Year Selector for Official Report */}
+            <div className="space-y-3 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 text-indigo-600 font-semibold text-xs sm:text-sm">
+                <FileCheck className="w-3 h-3 sm:w-4 sm:h-4" /> รายงานอย่างเป็นทางการ (แบบ A4)
               </div>
-              <div>
-                <label className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">ถึง</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
-                  <input
-                    type="date"
-                    value={filterDateEnd}
-                    onChange={(e) => setFilterDateEnd(e.target.value)}
-                    className="w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">ปี พ.ศ.</label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  >
+                    {Array.from({ length: 5 }, (_, i) => today.getFullYear() - i).map(y => (
+                      <option key={y} value={y}>{y + 543}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">เดือน</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                      const monthName = new Date(2024, m - 1).toLocaleDateString('th-TH', { month: 'long' });
+                      return <option key={m} value={m}>{monthName}</option>;
+                    })}
+                  </select>
                 </div>
               </div>
             </div>
 
-            <div className="text-[10px] sm:text-xs font-medium text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-100 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse flex-shrink-0"></span>
-              <span className="hidden sm:inline">Tip: สามารถลากวางรายการด้านล่างเพื่อจัดเรียงได้</span>
-              <span className="sm:hidden">ลากเพื่อจัดเรียง</span>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-green-600 font-semibold text-xs sm:text-sm">
+                <Filter className="w-3 h-3 sm:w-4 sm:h-4" /> ตัวกรองช่วงเวลา (สำหรับหน้านี้)
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">ตั้งแต่</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
+                    <input
+                      type="date"
+                      value={filterDateStart}
+                      onChange={(e) => setFilterDateStart(e.target.value)}
+                      className="w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">ถึง</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
+                    <input
+                      type="date"
+                      value={filterDateEnd}
+                      onChange={(e) => setFilterDateEnd(e.target.value)}
+                      className="w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[10px] sm:text-xs font-medium text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-100 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse flex-shrink-0"></span>
+                <span className="hidden sm:inline">Tip: สามารถลากวางรายการด้านล่างเพื่อจัดเรียงได้</span>
+                <span className="sm:hidden">ลากเพื่อจัดเรียง</span>
+              </div>
             </div>
           </div>
         </motion.div>

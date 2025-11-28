@@ -5,11 +5,12 @@ import { collection, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase';
 import { getUsersCollection, getEntriesCollection, getApprovalsCollection, getApprovalDocId, DEPARTMENTS } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
-import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download } from 'lucide-react';
+import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download, MessageSquare, X } from 'lucide-react';
 import ReportView from '@/components/ReportView';
 import ReportPdfDocument, { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
 import { prepareEntriesForPdf } from '@/lib/pdfUtils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface User {
   id: string;
@@ -21,20 +22,38 @@ interface User {
 interface ComplianceUser extends User {
   submitCount: number;
   hasSubmitted: boolean;
-  approval: { director: boolean; deputy: boolean };
+  approval: { 
+    director: boolean; 
+    deputy: boolean;
+    deputyComment?: string;
+    directorComment?: string;
+  };
 }
+
+// V2: Default comment text
+const DEFAULT_COMMENT = "รับทราบ ขอบคุณมาก";
 
 export default function CompliancePage() {
   const { userData } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [entries, setEntries] = useState<ReportPdfEntry[]>([]);
-  const [approvals, setApprovals] = useState<Record<string, { director: boolean; deputy: boolean }>>({});
+  const [approvals, setApprovals] = useState<Record<string, { 
+    director: boolean; 
+    deputy: boolean;
+    deputyComment?: string;
+    directorComment?: string;
+  }>>({});
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [viewUserWork, setViewUserWork] = useState<User | null>(null);
   const [filterDept, setFilterDept] = useState('All');
   const today = new Date();
   const [filterYear, setFilterYear] = useState(today.getFullYear());
   const [filterMonthNum, setFilterMonthNum] = useState(today.getMonth() + 1);
+  
+  // V2: Comment Modal State
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [approvalComment, setApprovalComment] = useState(DEFAULT_COMMENT);
+  const [pendingApprovalMode, setPendingApprovalMode] = useState<'bulk' | 'single' | null>(null);
   
   // Compute YYYY-MM format from year and month
   const filterMonth = `${filterYear}-${String(filterMonthNum).padStart(2, '0')}`;
@@ -70,9 +89,19 @@ export default function CompliancePage() {
     const approvalsRef = collection(db, approvalsPath[0], approvalsPath[1], approvalsPath[2], approvalsPath[3], approvalsPath[4]);
 
     const unsubscribeApprovals = onSnapshot(approvalsRef, (snapshot) => {
-      const appMap: Record<string, { director: boolean; deputy: boolean }> = {};
+      const appMap: Record<string, { 
+        director: boolean; 
+        deputy: boolean;
+        deputyComment?: string;
+        directorComment?: string;
+      }> = {};
       snapshot.docs.forEach((doc) => {
-        appMap[doc.id] = doc.data() as { director: boolean; deputy: boolean };
+        appMap[doc.id] = doc.data() as { 
+          director: boolean; 
+          deputy: boolean;
+          deputyComment?: string;
+          directorComment?: string;
+        };
       });
       setApprovals(appMap);
     });
@@ -107,7 +136,12 @@ export default function CompliancePage() {
         ...u,
         submitCount: userWorks.length,
         hasSubmitted: userWorks.length > 0,
-        approval: approvals[approvalKey] || { director: false, deputy: false },
+        approval: approvals[approvalKey] || { 
+          director: false, 
+          deputy: false,
+          deputyComment: '',
+          directorComment: '',
+        },
       };
     });
   };
@@ -131,35 +165,101 @@ export default function CompliancePage() {
     }
   };
 
-  const handleApprove = async () => {
+  // V2: Open comment modal for bulk approval
+  const handleApproveClick = () => {
     if (selectedUsers.length === 0) return;
     if (!canApprove) {
       alert('คุณไม่มีสิทธิ์อนุมัติ');
       return;
     }
-    if (!confirm(`ยืนยันการอนุมัติผลงานของ ${selectedUsers.length} รายการ ในฐานะ ${userData?.name}?`))
-      return;
+    setApprovalComment(DEFAULT_COMMENT);
+    setPendingApprovalMode('bulk');
+    setShowCommentModal(true);
+  };
 
-    const batchPromises = selectedUsers.map(async (uid) => {
-      const docId = `${uid}_${filterMonth}`;
-      const approvalsPath = getApprovalsCollection().split('/');
-      const docRef = doc(db, approvalsPath[0], approvalsPath[1], approvalsPath[2], approvalsPath[3], approvalsPath[4], docId);
+  // V2: Open comment modal for single approval
+  const handleSingleApproveClick = () => {
+    if (!viewUserWork) return;
+    setApprovalComment(DEFAULT_COMMENT);
+    setPendingApprovalMode('single');
+    setShowCommentModal(true);
+  };
 
-      // Need to get existing doc first to merge, not overwrite the other admin's approval
-      const docSnap = await getDoc(docRef);
-      const existingData = docSnap.exists() ? docSnap.data() : { director: false, deputy: false };
+  // V2: Confirm approval with comment
+  const handleConfirmApproval = async () => {
+    if (!canApprove) return;
 
-      const updateData: any = { ...existingData };
-      if (isDirector) updateData.director = true;
-      if (isDeputy) updateData.deputy = true;
-      updateData.lastUpdated = Date.now();
+    const comment = approvalComment.trim() || DEFAULT_COMMENT;
 
-      return setDoc(docRef, updateData);
-    });
+    try {
+      if (pendingApprovalMode === 'bulk') {
+        // Bulk approval
+        const batchPromises = selectedUsers.map(async (uid) => {
+          const docId = `${uid}_${filterMonth}`;
+          const approvalsPath = getApprovalsCollection().split('/');
+          const docRef = doc(db, approvalsPath[0], approvalsPath[1], approvalsPath[2], approvalsPath[3], approvalsPath[4], docId);
 
-    await Promise.all(batchPromises);
-    setSelectedUsers([]);
-    alert('บันทึกการอนุมัติเรียบร้อยแล้ว');
+          const docSnap = await getDoc(docRef);
+          const existingData = docSnap.exists() ? docSnap.data() : { director: false, deputy: false };
+
+          const updateData: any = { ...existingData };
+          if (isDirector) {
+            updateData.director = true;
+            updateData.directorComment = comment;
+          }
+          if (isDeputy) {
+            updateData.deputy = true;
+            updateData.deputyComment = comment;
+          }
+          updateData.lastUpdated = Date.now();
+
+          return setDoc(docRef, updateData);
+        });
+
+        await Promise.all(batchPromises);
+        setSelectedUsers([]);
+        alert('✅ บันทึกการอนุมัติเรียบร้อยแล้ว');
+      } else if (pendingApprovalMode === 'single' && viewUserWork) {
+        // Single approval
+        const docId = `${viewUserWork.id}_${filterMonth}`;
+        const approvalsPath = getApprovalsCollection().split('/');
+        const docRef = doc(
+          db,
+          approvalsPath[0],
+          approvalsPath[1],
+          approvalsPath[2],
+          approvalsPath[3],
+          approvalsPath[4],
+          docId
+        );
+        const docSnap = await getDoc(docRef);
+        const existingData = docSnap.exists()
+          ? docSnap.data()
+          : { director: false, deputy: false };
+
+        const updateData: any = { ...existingData };
+        if (isDirector) {
+          updateData.director = true;
+          updateData.directorComment = comment;
+        }
+        if (isDeputy) {
+          updateData.deputy = true;
+          updateData.deputyComment = comment;
+        }
+        updateData.lastUpdated = Date.now();
+
+        await setDoc(docRef, updateData);
+        alert('✅ อนุมัติเรียบร้อย');
+        setViewUserWork(null);
+      }
+    } catch (error) {
+      console.error('Error approving:', error);
+      alert('❌ เกิดข้อผิดพลาดในการบันทึก');
+    } finally {
+      setShowCommentModal(false);
+      setPendingApprovalMode(null);
+      setApprovalComment(DEFAULT_COMMENT);
+    }
   };
 
   // Prepare data for modal
@@ -213,7 +313,7 @@ export default function CompliancePage() {
           </h2>
           {canApprove && (
             <button
-              onClick={handleApprove}
+              onClick={handleApproveClick}
               disabled={selectedUsers.length === 0}
               className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
@@ -433,7 +533,14 @@ export default function CompliancePage() {
                 {/* Deputy Column */}
                 <td className="px-4 py-4 whitespace-nowrap text-center border-l border-r bg-gray-50/50">
                   {u.approval.deputy ? (
-                    <CheckCircle className="w-5 h-5 text-green-500 mx-auto" />
+                    <div className="flex flex-col items-center">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      {u.approval.deputyComment && (
+                        <span className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
+                          <MessageSquare className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <div className="w-5 h-5 border-2 border-gray-300 rounded-full mx-auto"></div>
                   )}
@@ -441,7 +548,14 @@ export default function CompliancePage() {
                 {/* Director Column */}
                 <td className="px-4 py-4 whitespace-nowrap text-center border-r bg-gray-50/50">
                   {u.approval.director ? (
-                    <CheckCircle className="w-5 h-5 text-green-500 mx-auto" />
+                    <div className="flex flex-col items-center">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      {u.approval.directorComment && (
+                        <span className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
+                          <MessageSquare className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <div className="w-5 h-5 border-2 border-gray-300 rounded-full mx-auto"></div>
                   )}
@@ -451,6 +565,95 @@ export default function CompliancePage() {
           </tbody>
         </table>
       </div>
+
+      {/* V2: Comment Modal */}
+      <AnimatePresence>
+        {showCommentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <MessageSquare className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900">เพิ่มความคิดเห็น</h3>
+                      <p className="text-sm text-gray-500">
+                        อนุมัติโดย: {isDirector ? 'ผู้อำนวยการ' : 'รองผู้อำนวยการ'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowCommentModal(false);
+                      setPendingApprovalMode(null);
+                      setApprovalComment(DEFAULT_COMMENT);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    ความคิดเห็น / ข้อเสนอแนะ
+                  </label>
+                  <textarea
+                    value={approvalComment}
+                    onChange={(e) => setApprovalComment(e.target.value)}
+                    rows={4}
+                    placeholder="กรอกความคิดเห็นของคุณที่นี่..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition resize-none text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 ข้อความนี้จะแสดงในหน้ารายงานสำหรับพิมพ์
+                  </p>
+                </div>
+
+                {pendingApprovalMode === 'bulk' && (
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+                    <p className="text-sm text-indigo-900 font-medium">
+                      🎯 จะอนุมัติ <span className="font-bold">{selectedUsers.length}</span> รายการ
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 border-t border-gray-100 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setPendingApprovalMode(null);
+                    setApprovalComment(DEFAULT_COMMENT);
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleConfirmApproval}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl shadow-lg shadow-indigo-500/30 transition font-bold flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  ยืนยันอนุมัติ
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Modal View Work */}
       {viewUserWork && (
@@ -498,34 +701,7 @@ export default function CompliancePage() {
               {/* Approve Button */}
               {canApprove && (
                 <button
-                  onClick={async () => {
-                    if (confirm('ยืนยันอนุมัติผลงานนี้?')) {
-                      const docId = `${viewUserWork.id}_${filterMonth}`;
-                      const approvalsPath = getApprovalsCollection().split('/');
-                      const docRef = doc(
-                        db,
-                        approvalsPath[0],
-                        approvalsPath[1],
-                        approvalsPath[2],
-                        approvalsPath[3],
-                        approvalsPath[4],
-                        docId
-                      );
-                      const docSnap = await getDoc(docRef);
-                      const existingData = docSnap.exists()
-                        ? docSnap.data()
-                        : { director: false, deputy: false };
-
-                      const updateData: any = { ...existingData };
-                      if (isDirector) updateData.director = true;
-                      if (isDeputy) updateData.deputy = true;
-                      updateData.lastUpdated = Date.now();
-
-                      await setDoc(docRef, updateData);
-                      alert('อนุมัติเรียบร้อย');
-                      setViewUserWork(null);
-                    }
-                  }}
+                  onClick={handleSingleApproveClick}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium print:hidden whitespace-nowrap"
                 >
                   <CheckCircle className="w-4 h-4" /> อนุมัติทันที ({isDirector ? 'ผอ.' : 'รอง ผอ.'})
@@ -538,4 +714,3 @@ export default function CompliancePage() {
     </div>
   );
 }
-

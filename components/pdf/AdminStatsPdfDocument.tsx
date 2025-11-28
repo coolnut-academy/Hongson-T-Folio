@@ -1,6 +1,6 @@
 'use client';
 
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 
 const registerSarabunFonts = () => {
   const globalObj = globalThis as typeof globalThis & { __sarabunFontsRegistered?: boolean };
@@ -63,6 +63,8 @@ interface AdminStatsPdfDocumentProps {
   generatedAt: string;
 }
 
+const LOGO_SRC = '/logo-hongson-mv.svg';
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Sarabun',
@@ -72,9 +74,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
     borderBottom: '2 solid #0f172a',
     paddingBottom: 12,
     marginBottom: 18,
+  },
+  logo: {
+    width: 50,
+    height: 50,
+    objectFit: 'contain',
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 22,
@@ -176,9 +189,12 @@ const AdminStatsPdfDocument = ({
   <Document>
     <Page size="A4" orientation="landscape" style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.title}>รายงานสถิติงานบุคลากร</Text>
-        <Text style={styles.subtitle}>ช่วงเวลา: {periodText}</Text>
-        <Text style={styles.metaText}>วันที่พิมพ์: {generatedAt}</Text>
+        <Image src={LOGO_SRC} style={styles.logo} />
+        <View style={styles.headerText}>
+          <Text style={styles.title}>รายงานสถิติงานบุคลากร</Text>
+          <Text style={styles.subtitle}>ช่วงเวลา: {periodText}</Text>
+          <Text style={styles.metaText}>วันที่พิมพ์: {generatedAt}</Text>
+        </View>
       </View>
 
       <View style={styles.summaryRow}>

@@ -1,10 +1,20 @@
-// Categories for entries
+// Categories for entries (V2: Updated categories)
 export const CATEGORIES = [
-  'งานสอน',
-  'งานแข่งขันครู',
-  'งานแข่งขันนักเรียน',
-  'งานที่ได้รับมอบหมาย',
-  'อื่นๆ',
+  'งานสอน', // Teaching
+  'งานพัฒนาวิชาชีพ', // Professional Development
+  'งานพัฒนาศักยภาพนักเรียน', // Student Potential Development
+  'งานเครือข่ายชุมชน', // Community Network
+  'งานที่ได้รับมอบหมาย', // Assigned Work
+  'อื่นๆ', // Others
+];
+
+// Level options for conditional fields
+export const LEVELS = [
+  'ระดับโรงเรียน', // School Level
+  'ระดับเขตพื้นที่การศึกษา', // Zone Level
+  'ระดับภูมิภาค', // Regional Level
+  'ระดับชาติ', // National Level
+  'ระดับนานาชาติ', // International Level
 ];
 
 // Departments
