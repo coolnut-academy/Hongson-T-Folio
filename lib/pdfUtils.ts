@@ -4,6 +4,7 @@
  */
 
 import type { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
+import type { WorkRecord } from '@/lib/filterData';
 
 export const isMobileDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -67,6 +68,53 @@ export const prepareEntriesForPdf = async (
 
       return {
         ...entry,
+        images: resolvedImages,
+      };
+    })
+  );
+};
+
+/**
+ * Preloads remote images in WorkRecord and embeds them as data URLs
+ * so @react-pdf/renderer can reliably render them into the PDF.
+ */
+export const prepareWorkRecordsForPdf = async (
+  workRecords: WorkRecord[]
+): Promise<WorkRecord[]> => {
+  if (typeof window === 'undefined') return workRecords;
+
+  return Promise.all(
+    workRecords.map(async (work) => {
+      if (!work.images || work.images.length === 0) return work;
+
+      const resolvedImages = await Promise.all(
+        work.images.map(async (imageUrl) => {
+          try {
+            // Skip if already a data URL
+            if (imageUrl.startsWith('data:')) {
+              return imageUrl;
+            }
+            
+            // Normalize URL - handle relative paths
+            let normalizedUrl = imageUrl;
+            if (imageUrl.startsWith('/')) {
+              // Relative path - convert to absolute URL
+              normalizedUrl = `${window.location.origin}${imageUrl}`;
+            } else if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+              // Missing protocol - assume relative path
+              normalizedUrl = `${window.location.origin}/${imageUrl}`;
+            }
+            
+            return await fetchAsDataUrl(normalizedUrl);
+          } catch (error) {
+            console.warn('Failed to inline image for PDF export:', imageUrl, error);
+            return imageUrl; // Return original URL if fetch fails
+          }
+        })
+      );
+
+      return {
+        ...work,
         images: resolvedImages,
       };
     })

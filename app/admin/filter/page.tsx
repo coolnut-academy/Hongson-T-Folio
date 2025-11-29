@@ -11,6 +11,7 @@ import { Filter, Loader2, FileDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AdminWorkFilterPdfDocument from '@/components/pdf/AdminWorkFilterPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
+import { prepareWorkRecordsForPdf } from '@/lib/pdfUtils';
 
 type TimeRangeType = 'all' | 'year' | 'month' | 'custom';
 
@@ -163,18 +164,22 @@ export default function AdminDataFilteringPage() {
     setIsGeneratingPDF(true);
 
     try {
+      // Convert all images to data URLs before generating PDF
+      // This ensures @react-pdf/renderer can reliably render images
+      const preparedResults = await prepareWorkRecordsForPdf(results);
+
       // Build filter metadata for PDF
       const filterMeta = {
         workCategory: currentFilters.work_category || workCategory !== 'งานทั้งหมด' ? workCategory : undefined,
-        teacherName: results[0]?.teacher_name, // Use first result's teacher if filtered
+        teacherName: preparedResults[0]?.teacher_name, // Use first result's teacher if filtered
         subjectGroup: currentFilters.subject_group || subjectGroup || undefined,
         timeRange: timeRangeType !== 'all' ? timeRangeType : undefined,
       };
 
-      // Create PDF document
+      // Create PDF document with prepared results (images as data URLs)
       const pdfDocument = (
         <AdminWorkFilterPdfDocument 
-          results={results} 
+          results={preparedResults} 
           filterMeta={filterMeta}
         />
       );
