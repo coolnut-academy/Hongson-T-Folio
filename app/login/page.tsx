@@ -4,7 +4,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Lock, Loader2, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Loader2, ArrowRight, Sparkles, Eye, EyeOff, Code2 } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -20,7 +20,9 @@ export default function LoginPage() {
   // ✅ Logic เดิม: Redirect ถ้า Login อยู่แล้ว
   useEffect(() => {
     if (userData) {
-      if (userData.role === 'admin' || userData.role === 'director' || userData.role === 'deputy') {
+      if (userData.role === 'superadmin') {
+        router.push('/admin/dashboard');
+      } else if (userData.role === 'admin' || userData.role === 'director' || userData.role === 'deputy') {
         router.push('/admin/dashboard');
       } else {
         router.push('/dashboard');
@@ -199,12 +201,57 @@ export default function LoginPage() {
             </motion.button>
           </form>
 
-          {/* Footer */}
-          <div className="mt-8 flex items-center justify-center gap-2 text-slate-400 text-xs font-medium opacity-70">
-            <Sparkles className="w-3 h-3" />
-            <span>Hongson School Digital System</span>
-            <Sparkles className="w-3 h-3" />
-          </div>
+          {/* Developer Credit */}
+<motion.div 
+  initial={{ opacity: 0, y: 8 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 0.5, duration: 0.5, ease: "easeOut" }}
+  className="mt-8 flex items-center justify-center"
+>
+  <motion.div
+    whileHover={{ 
+      y: -2,
+      scale: 1.03,
+      transition: { type: "spring", stiffness: 220, damping: 16 }
+    }}
+    className="relative inline-flex items-center gap-3 rounded-full border border-emerald-200/70 bg-gradient-to-r from-slate-50/90 via-white/95 to-emerald-50/90 px-4 sm:px-5 py-2 shadow-sm hover:shadow-md backdrop-blur-sm transition-shadow duration-300 group cursor-default"
+  >
+    {/* Glow ด้านหลัง (ใช้แค่ตอน hover / ไม่ animate loop) */}
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0 -z-10 rounded-full bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.20),_transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+    />
+
+    {/* Icon ฝั่งซ้าย */}
+    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50/80 shadow-inner">
+      <motion.div
+        whileHover={{ rotate: -8, scale: 1.05 }}
+        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+      >
+        <Code2 className="w-4 h-4 text-emerald-600" strokeWidth={2.4} />
+      </motion.div>
+    </div>
+
+    {/* ตัวอักษร */}
+    <div className="flex flex-col leading-tight">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-500/80">
+        Developer
+      </span>
+      <span className="text-xs sm:text-sm font-semibold bg-gradient-to-r from-slate-800 via-emerald-700 to-emerald-500 bg-clip-text text-transparent">
+        ผู้พัฒนา: นายสาธิต ศิริวัชน์
+      </span>
+    </div>
+
+    {/* Sparkles ฝั่งขวา – ใช้ animate-pulse (CSS) เบามาก */}
+    <div className="relative flex h-6 w-6 items-center justify-center">
+      <span
+        aria-hidden
+        className="absolute inline-flex h-full w-full rounded-full border border-emerald-300/60 opacity-0 group-hover:opacity-80 group-hover:scale-110 transition-all duration-300"
+      />
+      <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+    </div>
+  </motion.div>
+</motion.div>
         </div>
       </motion.div>
     </div>

@@ -2,9 +2,11 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDays, RefreshCcw, Printer } from 'lucide-react';
+import { CalendarDays, RefreshCcw, Printer, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { downloadPdf } from '@/lib/downloadPdf';
+import AdminKpiOverviewPdfDocument from '@/components/pdf/AdminKpiOverviewPdfDocument';
 import { DateRangeFilter } from './DateRangeFilter';
 import {
   AverageWorksCard,
@@ -33,6 +35,7 @@ export const KpiOverviewClient: React.FC = () => {
   const [isPending, setIsPending] = React.useState(false);
   const [isInitialLoading, setIsInitialLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
 
   const rangeLabel = React.useMemo(
     () => buildRangeLabel(rangeState),
@@ -117,6 +120,36 @@ export const KpiOverviewClient: React.FC = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSavePDF = async () => {
+    if (!data) return;
+
+    setIsGeneratingPDF(true);
+
+    try {
+      const generatedAt = new Date().toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const pdfDocument = (
+        <AdminKpiOverviewPdfDocument
+          data={data}
+          rangeLabel={rangeLabel}
+          generatedAt={generatedAt}
+        />
+      );
+
+      const filename = `รายงาน_KPI_Overview_${new Date().toISOString().split('T')[0]}.pdf`;
+      await downloadPdf(pdfDocument, filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('เกิดข้อผิดพลาดในการบันทึก PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   // Show loading state on initial load
@@ -285,6 +318,15 @@ export const KpiOverviewClient: React.FC = () => {
             >
               <Printer className="h-4 w-4" />
               พิมพ์รายงาน
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleSavePDF}
+              disabled={isGeneratingPDF || !data}
+              className="gap-2 no-print px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl shadow-md shadow-indigo-500/20 text-sm font-semibold"
+            >
+              <Download className={`h-4 w-4 ${isGeneratingPDF ? 'animate-spin' : ''}`} />
+              {isGeneratingPDF ? 'กำลังสร้าง PDF...' : 'บันทึก PDF'}
             </Button>
           </div>
         </div>

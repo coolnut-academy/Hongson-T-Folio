@@ -11,7 +11,7 @@ import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { getUsersCollection, APP_ID } from '@/lib/constants';
 
-export type UserRole = 'admin' | 'director' | 'deputy' | 'user';
+export type UserRole = 'superadmin' | 'admin' | 'director' | 'deputy' | 'user';
 
 export interface UserData {
   id: string; // username (doc ID)
@@ -49,8 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Auto-create admin users if collection is empty
       if (snapshot.empty) {
         try {
+          const superadminDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'superadmin');
           const adminDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'admin');
           const deputyDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'deputy');
+          
+          // Create Super Admin (Admin God)
+          await setDoc(superadminDocRef, {
+            username: 'superadmin',
+            password: 'superadmin2025',
+            name: 'Super Admin (ผู้ดูแลระบบสูงสุด)',
+            role: 'superadmin',
+            position: 'System Administrator',
+            department: 'IT & System Management',
+          });
           
           await setDoc(adminDocRef, {
             username: 'admin',

@@ -327,33 +327,42 @@ function PrintPageContent() {
   useEffect(() => {
     if (!userData) return;
 
-    const userId = userData.id;
-    const entriesPath = getEntriesCollection().split('/');
-    const entriesRef = collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]);
+    // ใช้ getDocs แทน onSnapshot สำหรับหน้าพิมพ์ (ไม่ต้อง real-time)
+    const fetchEntries = async () => {
+      const userId = userData.id;
+      const entriesPath = getEntriesCollection().split('/');
+      const entriesRef = collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]);
+      
+      try {
+        const { getDocs } = await import('firebase/firestore');
+        const snapshot = await getDocs(entriesRef);
+        
+        const entriesData: Entry[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.userId === userId) {
+            entriesData.push({
+              id: doc.id,
+              ...data,
+            } as Entry);
+          }
+        });
 
-    const unsubscribe = onSnapshot(entriesRef, (snapshot) => {
-      const entriesData: Entry[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.userId === userId) {
-          entriesData.push({
-            id: doc.id,
-            ...data,
-          } as Entry);
-        }
-      });
+        entriesData.sort((a, b) => {
+          const dateA = new Date(a.dateStart).getTime();
+          const dateB = new Date(b.dateStart).getTime();
+          return dateA - dateB;
+        });
 
-      entriesData.sort((a, b) => {
-        const dateA = new Date(a.dateStart).getTime();
-        const dateB = new Date(b.dateStart).getTime();
-        return dateA - dateB; // Chronological order
-      });
+        setEntries(entriesData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching entries:', error);
+        setLoading(false);
+      }
+    };
 
-      setEntries(entriesData);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    fetchEntries();
   }, [userData]);
 
   // Fetch approval data
@@ -397,11 +406,23 @@ function PrintPageContent() {
     ? `${filterYear}-${String(filterMonth).padStart(2, '0')}`
     : '';
 
-  // V2: Handle Save as PDF using html2pdf.js
+  // V2: Handle Save as PDF using html2pdf.js with progress indicator
   const handleSavePDF = async () => {
     setIsGeneratingPDF(true);
     
     try {
+      // รอให้รูปภาพทั้งหมดโหลดเสร็จก่อน
+      const images = document.querySelectorAll('#print-content img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if ((img as HTMLImageElement).complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.addEventListener('load', resolve);
+            img.addEventListener('error', resolve);
+          });
+        })
+      );
+
       // Dynamic import html2pdf
       const html2pdf = (await import('html2pdf.js')).default;
       
@@ -420,17 +441,22 @@ function PrintPageContent() {
       const opt = {
         margin: 0,
         filename: `รายงานผลงาน_${monthLabel}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
+        image: { type: 'jpeg' as const, quality: 0.85 }, // ลด quality จาก 0.98 → 0.85
         html2canvas: { 
-          scale: 2,
+          scale: 1.5, // ลด scale จาก 2 → 1.5 เพื่อความเร็ว
           useCORS: true,
           logging: false,
-          letterRendering: true
+          letterRendering: true,
+          scrollY: -window.scrollY,
+          scrollX: -window.scrollX,
+          windowWidth: document.documentElement.scrollWidth,
+          windowHeight: document.documentElement.scrollHeight
         },
         jsPDF: { 
           unit: 'mm' as const, 
           format: 'a4' as const, 
-          orientation: 'portrait' as const
+          orientation: 'portrait' as const,
+          compress: true // เพิ่ม compression
         },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
@@ -523,11 +549,13 @@ function PrintPageContent() {
                   onClick={handleSavePDF}
                   disabled={isGeneratingPDF}
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isGeneratingPDF ? 'กำลังประมวลผล อาจใช้เวลาสักครู่...' : 'บันทึกเป็น PDF'}
                 >
                   {isGeneratingPDF ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      กำลังสร้าง PDF...
+                      <span className="hidden sm:inline">กำลังสร้าง PDF...</span>
+                      <span className="sm:hidden">กำลังสร้าง...</span>
                     </>
                   ) : (
                     <>

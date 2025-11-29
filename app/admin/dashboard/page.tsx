@@ -3,11 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Users, FileText, Building2, BarChart3, LucideIcon, Calendar, TrendingUp, CheckCircle2, Printer, LayoutTemplate } from 'lucide-react';
+import { Users, FileText, Building2, BarChart3, LucideIcon, Calendar, TrendingUp, CheckCircle2, Printer, LayoutTemplate, Download } from 'lucide-react';
 import { getUsersCollection, getEntriesCollection, getApprovalsCollection, DEPARTMENTS, CATEGORIES } from '@/lib/constants';
 import { motion } from 'framer-motion';
 import { handlePrint } from '@/lib/pdfUtils';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+import { downloadPdf } from '@/lib/downloadPdf';
+import AdminDashboardPdfDocument from '@/components/pdf/AdminDashboardPdfDocument';
 
 // --- Types ---
 
@@ -188,6 +190,7 @@ export default function AdminDashboardPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [approvals, setApprovals] = useState<Record<string, { director: boolean; deputy: boolean }>>({});
   const [loading, setLoading] = useState(true);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
   // Time filter
   const today = new Date();
@@ -393,6 +396,40 @@ export default function AdminDashboardPage() {
   const totalSubmitted = new Set(filteredEntries.map((e) => e.userId)).size;
   const totalEntries = filteredEntries.length;
 
+  // Save as PDF
+  const handleSavePDF = async () => {
+    setIsGeneratingPDF(true);
+
+    try {
+      const generatedAt = new Date().toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const pdfDocument = (
+        <AdminDashboardPdfDocument
+          totalUsers={totalUsers}
+          totalSubmitted={totalSubmitted}
+          totalEntries={totalEntries}
+          periodText={getPeriodText()}
+          categoryChartData={categoryChartData}
+          monthlyChartData={monthlyChartData}
+          departmentStats={departmentStats}
+          generatedAt={generatedAt}
+        />
+      );
+
+      const filename = `รายงานภาพรวมผู้บริหาร_${new Date().toISOString().split('T')[0]}.pdf`;
+      await downloadPdf(pdfDocument, filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('เกิดข้อผิดพลาดในการบันทึก PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   // --- Render ---
 
   if (loading) {
@@ -440,13 +477,21 @@ export default function AdminDashboardPage() {
                 <p className="text-slate-500 text-xs sm:text-sm">สถิติการส่งงานและแนวโน้มตามช่วงเวลา</p>
               </div>
               
-              {/* Action Button */}
+              {/* Action Buttons */}
               <div className="no-print flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <button
                   onClick={handlePrint}
                   className="flex-1 sm:flex-initial px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-medium shadow-lg shadow-slate-500/20 flex items-center justify-center gap-2 transition-all"
                 >
                   <Printer className="w-4 h-4" /> พิมพ์รายงาน
+                </button>
+                <button
+                  onClick={handleSavePDF}
+                  disabled={isGeneratingPDF}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
+                >
+                  <Download className={`w-4 h-4 ${isGeneratingPDF ? 'animate-spin' : ''}`} />
+                  {isGeneratingPDF ? 'กำลังสร้าง PDF...' : 'บันทึก PDF'}
                 </button>
               </div>
             </div>

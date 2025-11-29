@@ -54,7 +54,7 @@ export interface UserData {
   email: string;
   name: string;
   position: string;
-  role: 'admin' | 'director' | 'deputy' | 'user';
+  role: 'superadmin' | 'admin' | 'director' | 'deputy' | 'user';
   department: string;
 }
 

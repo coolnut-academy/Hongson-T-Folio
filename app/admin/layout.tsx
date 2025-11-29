@@ -14,7 +14,8 @@ import {
   Menu, 
   X, 
   Leaf,
-  TrendingUp
+  TrendingUp,
+  Filter
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -32,7 +33,7 @@ export default function AdminLayout({
     if (!loading) {
       if (!userData) {
         router.push('/login');
-      } else if (userData.role !== 'admin' && userData.role !== 'director' && userData.role !== 'deputy') {
+      } else if (userData.role !== 'superadmin' && userData.role !== 'admin' && userData.role !== 'director' && userData.role !== 'deputy') {
         router.push('/dashboard');
       }
     }
@@ -48,12 +49,17 @@ export default function AdminLayout({
 
   if (!userData) return null;
 
-  const navItems = [
-    { label: 'ภาพรวม', href: '/admin/dashboard', icon: LayoutDashboard },
-    { label: 'KPI Overview', href: '/admin/dashboard/kpi-overview', icon: TrendingUp },
-    { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users },
-    { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck },
+  // Navigation items - "จัดการผู้ใช้" แสดงเฉพาะ Super Admin
+  const allNavItems = [
+    { label: 'ภาพรวม', href: '/admin/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'director', 'deputy'] },
+    { label: 'KPI Overview', href: '/admin/dashboard/kpi-overview', icon: TrendingUp, roles: ['superadmin', 'admin', 'director', 'deputy'] },
+    { label: 'คัดกรองข้อมูล', href: '/admin/filter', icon: Filter, roles: ['superadmin', 'admin', 'director', 'deputy'] },
+    { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users, roles: ['superadmin'] }, // เฉพาะ Super Admin
+    { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck, roles: ['superadmin', 'admin', 'director', 'deputy'] },
   ];
+
+  // Filter nav items ตาม role ของผู้ใช้
+  const navItems = allNavItems.filter(item => item.roles.includes(userData.role));
 
   const handleSignOut = async () => {
     await signOut();
@@ -113,9 +119,15 @@ export default function AdminLayout({
               <div className="hidden md:flex items-center gap-3 pl-4 border-l border-stone-200">
                 <div className="text-right">
                   <p className="text-xs font-bold text-stone-700 leading-tight">{userData.name}</p>
-                  <p className="text-[10px] text-stone-400 capitalize">{userData.role}</p>
+                  <p className={`text-[10px] capitalize ${userData.role === 'superadmin' ? 'text-amber-500 font-bold' : 'text-stone-400'}`}>
+                    {userData.role === 'superadmin' ? '⚡ Super Admin' : userData.role}
+                  </p>
                 </div>
-                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-100 to-white border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold shadow-sm">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-sm ${
+                  userData.role === 'superadmin' 
+                    ? 'bg-gradient-to-tr from-amber-400 to-yellow-500 text-white border-2 border-amber-300' 
+                    : 'bg-gradient-to-tr from-emerald-100 to-white border border-emerald-100 text-emerald-600'
+                }`}>
                   {userData.name.charAt(0)}
                 </div>
                 <button 
@@ -166,12 +178,18 @@ export default function AdminLayout({
                 <div className="pt-4 mt-4 border-t border-stone-100">
                   <div className="flex items-center justify-between px-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                        userData.role === 'superadmin' 
+                          ? 'bg-gradient-to-tr from-amber-400 to-yellow-500 text-white border-2 border-amber-300' 
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}>
                         {userData.name.charAt(0)}
                       </div>
                       <div className="text-sm">
                         <p className="font-bold text-stone-700">{userData.name}</p>
-                        <p className="text-xs text-stone-500">{userData.role}</p>
+                        <p className={`text-xs ${userData.role === 'superadmin' ? 'text-amber-500 font-bold' : 'text-stone-500'}`}>
+                          {userData.role === 'superadmin' ? '⚡ Super Admin' : userData.role}
+                        </p>
                       </div>
                     </div>
                     <button 
