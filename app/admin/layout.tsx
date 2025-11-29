@@ -13,7 +13,8 @@ import {
   ShieldCheck, 
   Menu, 
   X, 
-  Leaf 
+  Leaf,
+  TrendingUp
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -49,6 +50,7 @@ export default function AdminLayout({
 
   const navItems = [
     { label: 'ภาพรวม', href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'KPI Overview', href: '/admin/dashboard/kpi-overview', icon: TrendingUp },
     { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users },
     { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck },
   ];

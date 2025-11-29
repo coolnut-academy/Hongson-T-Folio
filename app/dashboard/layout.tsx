@@ -58,6 +58,7 @@ export default function DashboardLayout({
   const getActiveTab = () => {
     if (pathname?.includes('/add')) return 'add';
     if (pathname?.includes('/report')) return 'report';
+    if (pathname?.includes('/kpi-overview')) return 'kpi';
     return 'list';
   };
 
@@ -67,6 +68,7 @@ export default function DashboardLayout({
     { id: 'list', label: 'ผลงานของฉัน', href: '/dashboard', icon: LayoutGrid },
     { id: 'add', label: 'เพิ่มผลงาน', href: '/dashboard/add', icon: PlusCircle },
     { id: 'report', label: 'ออกรายงาน', href: '/dashboard/report', icon: FileBarChart },
+    { id: 'kpi', label: 'KPI Overview', href: '/dashboard/kpi-overview', icon: FileBarChart },
   ];
 
   return (

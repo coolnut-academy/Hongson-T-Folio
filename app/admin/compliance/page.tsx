@@ -5,11 +5,9 @@ import { collection, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase';
 import { getUsersCollection, getEntriesCollection, getApprovalsCollection, getApprovalDocId, DEPARTMENTS } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
-import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, Download, MessageSquare, X } from 'lucide-react';
+import { CheckCircle, Square, CheckSquare, AlertTriangle, Eye, XCircle, MessageSquare, X } from 'lucide-react';
 import ReportView from '@/components/ReportView';
-import ReportPdfDocument, { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
-import { downloadPdf } from '@/lib/downloadPdf';
-import { prepareEntriesForPdf } from '@/lib/pdfUtils';
+import type { ReportPdfEntry } from '@/components/pdf/ReportPdfDocument';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface User {
@@ -33,10 +31,13 @@ interface ComplianceUser extends User {
 // V2: Default comment text
 const DEFAULT_COMMENT = "รับทราบ ขอบคุณมาก";
 
+// Entry type used within compliance page — reuse ReportPdfEntry shape
+type ComplianceEntry = ReportPdfEntry;
+
 export default function CompliancePage() {
   const { userData } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [entries, setEntries] = useState<ReportPdfEntry[]>([]);
+  const [entries, setEntries] = useState<ComplianceEntry[]>([]);
   const [approvals, setApprovals] = useState<Record<string, { 
     director: boolean; 
     deputy: boolean;
@@ -81,7 +82,7 @@ export default function CompliancePage() {
       const entriesData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      })) as ReportPdfEntry[];
+      })) as ComplianceEntry[];
       setEntries(entriesData);
     });
 
@@ -262,8 +263,8 @@ export default function CompliancePage() {
     }
   };
 
-  // Prepare data for modal
-  const getModalEntries = (): ReportPdfEntry[] => {
+  // Prepare data for modal (use ComplianceEntry type)
+  const getModalEntries = (): ComplianceEntry[] => {
     if (!viewUserWork) return [];
     const [year, month] = filterMonth.split('-');
     return entries.filter((e) => {
@@ -276,33 +277,7 @@ export default function CompliancePage() {
     });
   };
 
-  const handleDownloadUserReport = async () => {
-    if (!viewUserWork) return;
-    const modalEntries = getModalEntries();
-    const exportDate = new Date();
-    const monthLabel = new Date(filterYear, filterMonthNum - 1).toLocaleDateString('th-TH', {
-      month: 'long',
-      year: 'numeric',
-    });
-    const monthSlug = monthLabel.replace(/\s/g, '-');
-
-    const preparedEntries = await prepareEntriesForPdf(modalEntries);
-
-    await downloadPdf(
-      <ReportPdfDocument
-        entries={preparedEntries}
-        user={viewUserWork}
-        title={`รายงานประจำเดือน ${filterMonth}`}
-        subtitle={`ข้อมูล ณ เดือน ${monthLabel}`}
-        generatedAt={exportDate.toLocaleDateString('th-TH', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}
-      />,
-      `รายงาน-${viewUserWork.name}-${monthSlug}.pdf`
-    );
-  };
+  // การดาวน์โหลด PDF ถูกปิดใช้งานในฝั่ง admin แล้ว
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -686,18 +661,6 @@ export default function CompliancePage() {
               )}
             </div>
             <div className="p-4 border-t bg-gray-50 flex flex-col sm:flex-row justify-between gap-3">
-              {/* Export Buttons */}
-              {getModalEntries().length > 0 && (
-                <div className="print:hidden">
-                  <button
-                    onClick={handleDownloadUserReport}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium"
-                  >
-                    <Download className="w-4 h-4" /> บันทึก PDF
-                  </button>
-                </div>
-              )}
-              
               {/* Approve Button */}
               {canApprove && (
                 <button

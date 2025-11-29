@@ -82,8 +82,19 @@ body {
   }
 }
 
-/* Print styles */
+/* Print styles - Optimized for Space Efficiency */
 @media print {
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  
   .no-print {
     display: none !important;
   }
@@ -91,5 +102,100 @@ body {
   .print-full-width {
     width: 100% !important;
     max-width: none !important;
+  }
+  
+  /* Smart grid for small boxes - 2 columns */
+  .print-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  /* Compact spacing */
+  .section {
+    margin-bottom: 12px !important;
+  }
+  
+  /* Only large components should avoid page breaks */
+  .no-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Chart containers - must stay together */
+  .chart-container {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    height: auto !important;
+    max-height: 400px !important;
+    overflow: visible !important;
+  }
+  
+  /* Recharts specific */
+  .recharts-wrapper,
+  canvas,
+  svg {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    max-width: 100% !important;
+  }
+  
+  /* Dashboard grid - 2 columns instead of single column */
+  .dashboard-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  /* Stats cards grid - 3 columns for small cards */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+  
+  /* Small cards can break safely */
+  .card {
+    margin-bottom: 0 !important;
+    page-break-inside: auto !important;
+  }
+  
+  /* Report section - must stay together */
+  .report-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  /* Table fixes */
+  table {
+    page-break-inside: auto !important;
+  }
+  
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+  
+  thead {
+    display: table-header-group !important;
+  }
+  
+  /* Remove shadows and unnecessary decorations */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  /* Reduce padding for print */
+  .print-compact {
+    padding: 8px !important;
+  }
+  
+  /* Chart print container - simplified (charts use fixed size in print mode) */
+  .printable-chart {
+    width: 100% !important;
+    height: 260px !important;
+    min-height: 260px !important;
   }
 }
