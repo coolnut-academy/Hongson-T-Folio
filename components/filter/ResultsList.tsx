@@ -97,7 +97,7 @@ export function ResultsList({ results }: ResultsListProps) {
       </div>
 
       {/* Print-only: one card per page */}
-      <div className="print-only">
+      <div className="print-only" style={{ margin: 0, padding: 0 }}>
         {results.map((work) => (
           <PrintableWorkCard key={work.id} work={work} logoUrl={logoUrl} />
         ))}

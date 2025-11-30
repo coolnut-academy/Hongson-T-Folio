@@ -71,7 +71,13 @@ export default function CompliancePage() {
     const unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
       const usersData = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((u: any) => u.role !== 'admin') as User[];
+        .filter((u: any) => {
+          // Filter out admin and superadmin roles, and specific superadmin usernames
+          const isSuperAdmin = u.role === 'superadmin' || 
+                              u.username === 'superadmin' || 
+                              u.username === 'admingod';
+          return u.role !== 'admin' && !isSuperAdmin;
+        }) as User[];
       setUsers(usersData);
     });
 
@@ -356,13 +362,16 @@ export default function CompliancePage() {
       {/* Mobile Cards View */}
       <div className="lg:hidden space-y-3">
         <div className="flex items-center justify-between px-2 mb-2">
-          <button onClick={toggleSelectAll} className="text-sm flex items-center gap-2 text-gray-600 hover:text-gray-900">
+          <button 
+            onClick={toggleSelectAll} 
+            className="text-sm flex items-center gap-2 text-gray-600 hover:text-gray-900 active:text-gray-700 min-h-[44px] px-2 -ml-2"
+          >
             {selectedUsers.length === complianceList.length && complianceList.length > 0 ? (
-              <CheckSquare className="w-4 h-4 text-green-600" />
+              <CheckSquare className="w-5 h-5 text-green-600 flex-shrink-0" />
             ) : (
-              <Square className="w-4 h-4" />
+              <Square className="w-5 h-5 flex-shrink-0" />
             )}
-            <span>{selectedUsers.length === complianceList.length && complianceList.length > 0 ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมด'}</span>
+            <span className="font-medium">{selectedUsers.length === complianceList.length && complianceList.length > 0 ? 'ยกเลิกเลือกทั้งหมด' : 'เลือกทั้งหมด'}</span>
           </button>
         </div>
         
@@ -372,19 +381,22 @@ export default function CompliancePage() {
             className={`rounded-xl shadow border p-4 ${selectedUsers.includes(u.id) ? 'bg-green-50 border-green-200' : !u.hasSubmitted ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}
           >
             <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <button onClick={() => toggleSelectUser(u.id)}>
+                  <button 
+                    onClick={() => toggleSelectUser(u.id)}
+                    className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  >
                     {selectedUsers.includes(u.id) ? (
-                      <CheckSquare className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <CheckSquare className="w-6 h-6 text-green-600" />
                     ) : (
-                      <Square className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                      <Square className="w-6 h-6 text-gray-400" />
                     )}
                   </button>
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-sm">{u.name}</h3>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">{u.name}</h3>
                     {!u.hasSubmitted && (
-                      <span className="inline-block mt-1 text-red-600 text-[10px] border border-red-200 bg-white px-1.5 py-0.5 rounded">
+                      <span className="inline-block mt-1 text-red-600 text-[10px] sm:text-xs border border-red-200 bg-white px-2 py-1 rounded">
                         ยังไม่ส่งงาน!
                       </span>
                     )}
@@ -393,30 +405,30 @@ export default function CompliancePage() {
               </div>
               <button
                 onClick={() => setViewUserWork(u)}
-                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition flex-shrink-0"
+                className="p-2.5 sm:p-2 text-green-600 hover:bg-green-50 active:bg-green-100 rounded-lg transition flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
-                <Eye className="w-4 h-4" />
+                <Eye className="w-5 h-5 sm:w-4 sm:h-4" />
               </button>
             </div>
 
-            <div className="space-y-2 text-sm mb-3">
-              <div className="flex justify-between">
+            <div className="space-y-2 text-xs sm:text-sm mb-3">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">กลุ่มสาระ:</span>
-                <span className="text-gray-900 font-medium text-right text-xs">{u.department}</span>
+                <span className="text-gray-900 font-medium text-right text-xs sm:text-sm truncate ml-2">{u.department}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">ส่งงาน:</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${u.hasSubmitted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${u.hasSubmitted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                   {u.submitCount} รายการ
                 </span>
               </div>
             </div>
 
             <div className="flex gap-2 pt-3 border-t border-gray-200">
-              <div className={`flex-1 py-2 rounded-lg text-center text-xs font-medium border ${u.approval.deputy ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+              <div className={`flex-1 py-2.5 sm:py-2 rounded-lg text-center text-xs font-medium border min-h-[44px] flex items-center justify-center ${u.approval.deputy ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                 รองฯ {u.approval.deputy && '✓'}
               </div>
-              <div className={`flex-1 py-2 rounded-lg text-center text-xs font-medium border ${u.approval.director ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+              <div className={`flex-1 py-2.5 sm:py-2 rounded-lg text-center text-xs font-medium border min-h-[44px] flex items-center justify-center ${u.approval.director ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                 ผอ. {u.approval.director && '✓'}
               </div>
             </div>
@@ -607,23 +619,24 @@ export default function CompliancePage() {
 
               {/* Footer */}
               <div className="p-6 border-t border-gray-100 flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowCommentModal(false);
-                    setPendingApprovalMode(null);
-                    setApprovalComment(DEFAULT_COMMENT);
-                  }}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  onClick={handleConfirmApproval}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl shadow-lg shadow-indigo-500/30 transition font-bold flex items-center justify-center gap-2"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  ยืนยันอนุมัติ
-                </button>
+                  <button
+                    onClick={() => {
+                      setShowCommentModal(false);
+                      setPendingApprovalMode(null);
+                      setApprovalComment(DEFAULT_COMMENT);
+                    }}
+                    className="flex-1 px-4 py-3 sm:py-2.5 border border-gray-300 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-50 active:bg-gray-100 transition font-medium min-h-[44px] text-sm sm:text-base"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    onClick={handleConfirmApproval}
+                    className="flex-1 px-4 py-3 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:from-indigo-800 active:to-indigo-900 text-white rounded-lg sm:rounded-xl shadow-lg shadow-indigo-500/30 transition font-bold flex items-center justify-center gap-2 min-h-[44px] text-sm sm:text-base"
+                  >
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">ยืนยันอนุมัติ</span>
+                    <span className="sm:hidden">อนุมัติ</span>
+                  </button>
               </div>
             </motion.div>
           </div>
@@ -641,7 +654,7 @@ export default function CompliancePage() {
               </div>
               <button
                 onClick={() => setViewUserWork(null)}
-                className="text-gray-500 hover:text-red-500 print:hidden"
+                className="text-gray-500 hover:text-red-500 active:text-red-600 print:hidden p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <XCircle className="w-6 h-6" />
               </button>
@@ -665,9 +678,11 @@ export default function CompliancePage() {
               {canApprove && (
                 <button
                   onClick={handleSingleApproveClick}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium print:hidden whitespace-nowrap"
+                  className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-lg flex items-center justify-center gap-2 transition-all text-sm font-medium print:hidden min-h-[44px]"
                 >
-                  <CheckCircle className="w-4 h-4" /> อนุมัติทันที ({isDirector ? 'ผอ.' : 'รอง ผอ.'})
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" /> 
+                  <span className="hidden sm:inline">อนุมัติทันที ({isDirector ? 'ผอ.' : 'รอง ผอ.'})</span>
+                  <span className="sm:hidden">อนุมัติ ({isDirector ? 'ผอ.' : 'รอง ผอ.'})</span>
                 </button>
               )}
             </div>

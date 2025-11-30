@@ -458,7 +458,7 @@ export default function AdminDashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 stats-grid"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stats-grid"
             >
               <StatCard 
                 title="บุคลากรทั้งหมด" 
@@ -490,33 +490,41 @@ export default function AdminDashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6 print-grid"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 print-grid"
             >
             {/* Bar Chart: Entries by Category */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-break chart-container">
-              <div className="flex items-center mb-4">
-                <BarChart3 className="w-5 h-5 mr-2 text-indigo-600" />
-                <h3 className="text-lg font-bold text-slate-800">สถิติแยกตามหมวดหมู่</h3>
+            <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 no-break chart-container">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-indigo-600 flex-shrink-0" />
+                <h3 className="text-base sm:text-lg font-bold text-slate-800">สถิติแยกตามหมวดหมู่</h3>
               </div>
               {totalEntries === 0 ? (
-                <div className="h-64 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                <div className="h-48 sm:h-64 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
                   <div className="text-center">
-                    <BarChart3 className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                    <p className="text-sm text-slate-400">ไม่มีข้อมูล</p>
+                    <BarChart3 className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs sm:text-sm text-slate-400">ไม่มีข้อมูล</p>
                   </div>
                 </div>
               ) : (
-                <CategoryBarChart data={categoryChartData} />
+                <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+                  <div className="min-w-[280px]">
+                    <CategoryBarChart data={categoryChartData} />
+                  </div>
+                </div>
               )}
             </div>
 
             {/* Line Chart: Monthly Submission Trends */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-break chart-container">
-              <div className="flex items-center mb-4">
-                <LayoutTemplate className="w-5 h-5 mr-2 text-indigo-600" />
-                <h3 className="text-lg font-bold text-slate-800">แนวโน้มการส่งงานรายเดือน</h3>
+            <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 no-break chart-container">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <LayoutTemplate className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-indigo-600 flex-shrink-0" />
+                <h3 className="text-base sm:text-lg font-bold text-slate-800">แนวโน้มการส่งงานรายเดือน</h3>
               </div>
-              <MonthlyLineChart data={monthlyChartData} />
+              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+                <div className="min-w-[280px]">
+                  <MonthlyLineChart data={monthlyChartData} />
+                </div>
+              </div>
               <p className="text-xs text-slate-500 text-center mt-2">
                 ปี พ.ศ. {selectedYear + 543}
               </p>
@@ -554,33 +562,33 @@ export default function AdminDashboardPage() {
               </div>
               
               {/* Filter Type Selector */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 <button
                   onClick={() => setFilterType('month')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 sm:flex-initial px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                     filterType === 'month' 
                       ? 'bg-emerald-600 text-white shadow-md' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300'
                   }`}
                 >
                   รายเดือน
                 </button>
                 <button
                   onClick={() => setFilterType('year')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 sm:flex-initial px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                     filterType === 'year' 
                       ? 'bg-emerald-600 text-white shadow-md' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300'
                   }`}
                 >
                   รายปี
                 </button>
                 <button
                   onClick={() => setFilterType('range')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 sm:flex-initial px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                     filterType === 'range' 
                       ? 'bg-emerald-600 text-white shadow-md' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300'
                   }`}
                 >
                   ช่วงเวลา
@@ -589,13 +597,13 @@ export default function AdminDashboardPage() {
 
               {/* Conditional Filters Based on Type */}
               {filterType === 'month' && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">ปี พ.ศ.</label>
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                    className="w-full px-3 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none min-h-[44px]"
                   >
                     {Array.from({ length: 5 }, (_, i) => today.getFullYear() - i).map(y => (
                       <option key={y} value={y}>{y + 543}</option>
@@ -607,7 +615,7 @@ export default function AdminDashboardPage() {
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                    className="w-full px-3 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none min-h-[44px]"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
                       const monthName = new Date(2024, m - 1).toLocaleDateString('th-TH', { month: 'long' });

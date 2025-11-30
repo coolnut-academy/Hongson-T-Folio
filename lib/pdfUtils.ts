@@ -25,6 +25,13 @@ export const handlePrint = (): void => {
   window.print();
 };
 
+// ==================== IMAGE RESIZE CONFIGURATION ====================
+const MAX_IMAGE_WIDTH = 1200; // pixels
+const MAX_IMAGE_HEIGHT = 1200; // pixels
+const JPEG_QUALITY = 0.85; // 85% quality
+
+// ==================== HELPER FUNCTIONS ====================
+
 const blobToDataUrl = (blob: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -33,13 +40,99 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
+/**
+ * Resize image using Canvas API to reduce file size for PDF
+ * This reduces the data URL size significantly while maintaining good quality
+ */
+const resizeImage = async (
+  imageUrl: string,
+  maxWidth: number = MAX_IMAGE_WIDTH,
+  maxHeight: number = MAX_IMAGE_HEIGHT,
+  quality: number = JPEG_QUALITY
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      try {
+        // Calculate new dimensions while maintaining aspect ratio
+        let width = img.width;
+        let height = img.height;
+        
+        // Only resize if image is larger than max dimensions
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        
+        // Create canvas and resize
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Cannot get canvas context'));
+          return;
+        }
+        
+        // Enable image smoothing for better quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Draw resized image
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to data URL (JPEG format for smaller size)
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for resizing'));
+    };
+    
+    img.src = imageUrl;
+  });
+};
+
+/**
+ * Fetch image and resize it before converting to data URL
+ * This significantly reduces the PDF file size
+ */
 const fetchAsDataUrl = async (url: string): Promise<string> => {
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    mode: 'cors',
+    credentials: 'omit',
+  });
+  
   if (!response.ok) {
     throw new Error(`Unable to fetch image: ${response.status}`);
   }
+  
   const blob = await response.blob();
-  return blobToDataUrl(blob);
+  
+  // Validate that it's an image
+  if (!blob.type.startsWith('image/')) {
+    throw new Error(`Invalid content type: ${blob.type}`);
+  }
+  
+  // Create object URL for Canvas API
+  const objectUrl = URL.createObjectURL(blob);
+  
+  try {
+    // Resize image before converting to data URL
+    const resizedDataUrl = await resizeImage(objectUrl, MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT, JPEG_QUALITY);
+    return resizedDataUrl;
+  } finally {
+    // Clean up object URL
+    URL.revokeObjectURL(objectUrl);
+  }
 };
 
 /**

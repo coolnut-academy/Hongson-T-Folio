@@ -12,7 +12,7 @@ export function PrintableWorkCard({ work, logoUrl }: PrintableWorkCardProps) {
   const images = work.images?.slice(0, 4) ?? [];
 
   return (
-    <div className="print-page p-4 border border-stone-300 rounded-lg mb-4 bg-white">
+    <div className="print-page p-4 border border-stone-300 rounded-lg bg-white" style={{ marginBottom: 0 }}>
       {/* Header: Logo and Teacher Info - Very Compact */}
       <div className="flex justify-between items-start mb-2 pb-2 border-b border-stone-200">
         {/* School Logo */}

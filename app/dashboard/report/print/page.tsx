@@ -3,14 +3,17 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSearchParams } from 'next/navigation';
-import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getEntriesCollection, getApprovalsCollection } from '@/lib/constants';
-import { Printer, Loader2, ArrowLeft, FileDown } from 'lucide-react';
+import { Printer, Loader2, ArrowLeft, FileText, Globe, AlertCircle } from 'lucide-react'; // เพิ่ม AlertCircle ตรงนี้
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 
-// V2: Entry type with conditional fields
+// --- Configuration & Styles ---
+const ORG_NAME_TH = "โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ";
+const ORG_NAME_EN = "HONGSONSUKSA SCHOOL";
+const LOGO_URL = "/logo-hongson-metaverse.png"; 
+
 interface Entry {
   id: string;
   userId: string;
@@ -25,7 +28,6 @@ interface Entry {
   organization?: string;
 }
 
-// V2: Approval with comments
 interface Approval {
   deputy?: boolean;
   director?: boolean;
@@ -33,283 +35,300 @@ interface Approval {
   directorComment?: string;
 }
 
-// V2: ปรับ layout ให้แสดงภาพแบบ 2x2 grid เสมอ (ตามภาพตัวอย่าง)
-const ImageGrid2x2 = ({ images }: { images: string[] }) => {
-  // แสดงภาพสูงสุด 4 ภาพ ในรูปแบบ 2x2 grid
+const formatThaiDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+};
+
+// Component: Image Grid
+const ImageGridGallery = ({ images }: { images: string[] }) => {
   const displayImages = images.slice(0, 4);
-  
-  // ถ้ามีภาพน้อยกว่า 4 ใช้พื้นที่ว่างแทน
-  while (displayImages.length < 4) {
-    displayImages.push('');
-  }
+  while (displayImages.length < 4) displayImages.push('');
 
   return (
-    <div className="grid grid-cols-2 gap-3 mt-4">
-      {displayImages.map((img, idx) => (
-        <div 
-          key={idx} 
-          className="aspect-[4/3] bg-gray-100 border border-gray-300 rounded overflow-hidden flex items-center justify-center"
-        >
-          {img ? (
-            <img 
-              src={img} 
-              alt={`Evidence ${idx + 1}`} 
-              className="w-full h-full object-cover"
-              loading="eager"
-              crossOrigin="anonymous"
-            />
-          ) : (
-            <span className="text-gray-400 text-sm">ไม่มีภาพ</span>
-          )}
-        </div>
-      ))}
+    <div className="w-full mb-6">
+      <div className="grid grid-cols-2 gap-2 h-[100mm]">
+        {displayImages.map((img, idx) => (
+          <div 
+            key={idx} 
+            className={`relative bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center ${
+              displayImages.filter(x => x).length === 1 ? 'col-span-2 row-span-2' : ''
+            }`}
+          >
+            {img ? (
+              <img 
+                src={img} 
+                alt={`Evidence ${idx + 1}`} 
+                className="w-full h-full object-cover"
+                loading="eager"
+                crossOrigin="anonymous"
+              />
+            ) : (
+              <div className="flex flex-col items-center text-slate-300">
+                <FileText className="w-8 h-8 mb-2" />
+                <span className="text-xs font-light">No Image</span>
+              </div>
+            )}
+            {img && (
+              <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">
+                IMG-{idx + 1}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
-// Entry Page Component (1 entry = 1 A4 page) - ปรับตามภาพตัวอย่าง
-const EntryPage = ({ entry, index }: { entry: Entry; index: number }) => {
-  const hasConditionalFields = entry.activityName || entry.level || entry.organization;
+// Component: Header
+const PageHeader = ({ title, subTitle }: { title: string, subTitle?: string }) => (
+  <div className="flex justify-between items-start">
+    <div className="flex items-center gap-3">
+      <div className="w-12 h-12  flex items-center justify-center overflow-hidden ">
+        <img 
+          src={LOGO_URL} 
+          alt="School Logo" 
+          className="w-full h-full object-contain"
+          loading="eager"
+          crossOrigin="anonymous"
+        />
+      </div>
+      <div>
+        <h3 className="font-bold text-slate-800 text-sm tracking-wide">{ORG_NAME_TH}</h3>
+        <p className="text-[10px] text-slate-500 uppercase tracking-widest">{ORG_NAME_EN}</p>
+      </div>
+    </div>
+    <div className="text-right">
+      <h1 className="font-bold text-slate-900 text-lg font-prompt">{title}</h1>
+      {subTitle && <p className="text-xs text-slate-500">{subTitle}</p>}
+    </div>
+  </div>
+);
 
+// Component: Footer
+const PageFooter = ({ pageNum, docId }: { pageNum: number, docId?: string }) => (
+  <div className="pt-2 flex justify-between items-center text-[10px] text-slate-400 font-light">
+    <div>Hongson T-Folio Professional Report System</div>
+    <div className="flex gap-4">
+      <span>REF: {docId || 'DOC-GEN-' + new Date().getTime().toString().slice(-6)}</span>
+      <span>Page {pageNum}</span>
+    </div>
+  </div>
+);
+
+// --- ENTRY PAGE ---
+const EntryPage = ({ entry, index, user }: { entry: Entry; index: number; user: { name?: string; position?: string } | null }) => {
   return (
-    <div className="w-[210mm] h-[297mm] bg-white p-[15mm] mx-auto shadow-lg print:shadow-none print:w-full print:h-screen overflow-hidden flex flex-col relative page-break-after-always">
-      {/* Header */}
-      <div className="flex-none mb-4 pb-3 border-b-2 border-gray-800">
-        <h1 className="text-2xl font-bold text-center mb-2">
-          รายงานสรุปผลงานส่วนบุคคล
-        </h1>
-        <p className="text-sm text-center text-gray-600">
-          ชื่อผลงาน: {entry.title}
-        </p>
-        <div className="flex justify-between items-center mt-2 text-sm">
-          <span className="text-gray-700">
-            <strong>ผู้รายงาน:</strong> {/* จะแสดงชื่อครูจากหน้าอื่น */}
-          </span>
-          <span className="text-gray-700">
-            <strong>วันที่พิมพ์:</strong> {new Date().toLocaleDateString('th-TH', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
-            })}
-          </span>
-        </div>
+    <div className="print-page w-[210mm] h-[297mm] bg-white p-[15mm] mx-auto shadow-2xl relative flex flex-col overflow-hidden font-sarabun mb-8 print:mb-0">
+      
+      {/* Watermark */}
+      <div className="absolute inset-x-0 top-[55%] flex justify-center pointer-events-none z-0">
+        <img 
+          src="/logo-hongson.png" 
+          alt="School Logo Watermark" 
+          className="w-[120mm] h-[120mm] object-contain opacity-[0.1]" 
+        />
       </div>
 
-      {/* Entry Number */}
-      <div className="flex-none mb-3">
-        <h2 className="text-xl font-bold text-indigo-900">
-          {index + 1}. {entry.title}
-        </h2>
-        <div className="flex gap-4 text-sm text-gray-600 mt-1">
-          <span>
-            <strong>หมวดหมู่:</strong> {entry.category}
-          </span>
-          <span>|</span>
-          <span>
-            <strong>วันที่:</strong> {new Date(entry.dateStart).toLocaleDateString('th-TH', { 
-              day: 'numeric', 
-              month: 'short', 
-              year: 'numeric' 
-            })}
-          </span>
-        </div>
-      </div>
+      <div className="relative z-10 flex flex-col h-full">
+        <PageHeader title="รายงานผลการปฏิบัติงาน" subTitle={`รายการที่ ${index + 1}`} />
+        
+        {/* Separator Line */}
+        <div className="border-b-2 border-slate-800 mt-2 mb-6"></div>
 
-      {/* Description */}
-      <div className="flex-none mb-3">
-        {hasConditionalFields && (
-          <div className="text-xs bg-indigo-50 border border-indigo-200 p-2 rounded mb-2">
+        <ImageGridGallery images={entry.images || []} />
+
+        <div className="flex-grow">
+          <div className="flex items-baseline gap-3 mb-2">
+            <span className="px-2 py-1 bg-slate-800 text-white text-xs rounded-sm font-bold">
+              {entry.category}
+            </span>
+            <h2 className="text-xl font-bold text-slate-900 font-prompt leading-tight">
+              {entry.title}
+            </h2>
+          </div>
+
+          <div className="flex flex-wrap gap-y-2 gap-x-6 text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-slate-900">วันที่:</span>
+              <span>{formatThaiDate(entry.dateStart)}</span>
+            </div>
             {entry.activityName && (
-              <span className="mr-3">
-                <span className="font-semibold text-indigo-900">กิจกรรม:</span>{' '}
-                <span className="text-indigo-700">{entry.activityName}</span>
-              </span>
+              <div className="flex items-center gap-1">
+                 <span className="font-semibold text-slate-900">กิจกรรม:</span> {entry.activityName}
+              </div>
             )}
             {entry.level && (
-              <span className="mr-3">
-                <span className="font-semibold text-indigo-900">ระดับ:</span>{' '}
-                <span className="text-indigo-700">{entry.level}</span>
-              </span>
-            )}
-            {entry.organization && (
-              <span>
-                <span className="font-semibold text-indigo-900">หน่วยงาน:</span>{' '}
-                <span className="text-indigo-700">{entry.organization}</span>
-              </span>
+              <div className="flex items-center gap-1">
+                 <span className="font-semibold text-slate-900">ระดับ:</span> {entry.level}
+              </div>
             )}
           </div>
-        )}
-        
-        {entry.description && (
-          <p className="text-sm text-gray-700 leading-relaxed text-justify indent-8">
+
+          <div className="text-sm text-slate-700 leading-relaxed text-justify font-sarabun indent-8">
             {entry.description}
-          </p>
-        )}
-      </div>
+          </div>
+        </div>
 
-      {/* 2x2 Image Grid */}
-      <div className="flex-none">
-        <ImageGrid2x2 images={entry.images || []} />
-      </div>
+        <div className="mt-4 mb-2 flex justify-end">
+          <div className="text-right">
+            <p className="text-xs font-bold text-slate-800">{user?.name || 'ผู้รายงาน'}</p>
+            <p className="text-[10px] text-slate-500">ผู้บันทึกข้อมูล</p>
+          </div>
+        </div>
 
-      {/* Footer */}
-      <div className="flex-none mt-auto pt-3 border-t border-gray-300 text-center text-xs text-gray-500">
-        <p>System generated by Hongson T-Folio | หน้า {index + 1}</p>
+        {/* Separator Line & Spacing */}
+        <div className="mt-auto border-t border-slate-200"></div>
+        <PageFooter pageNum={index + 1} />
       </div>
     </div>
   );
 };
 
-// V2: หน้าที่ 1 - หัวเอกสารอนุมัติ (แยกออกมาเป็นหน้าเดียว)
-const ApprovalHeaderPage = ({ 
-  user, 
-  month,
-  totalEntries 
-}: { 
-  user: { name: string; position?: string }; 
-  month: string;
-  totalEntries: number;
-}) => {
-  const monthLabel = new Date(month + '-01').toLocaleDateString('th-TH', { 
-    month: 'long', 
-    year: 'numeric' 
-  });
-
+// --- APPROVAL HEADER PAGE ---
+const ApprovalHeaderPage = ({ user, month, totalEntries, pageNum }: { user: { name: string; position?: string }; month: string; totalEntries: number; pageNum: number }) => {
   return (
-    <div className="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto flex flex-col justify-start page-break-after-always">
-      <div className="space-y-6">
-        {/* หัวเรื่อง */}
-        <h1 className="text-2xl font-bold text-center mb-8">
-          บันทึกข้อความอนุมัติผลงาน
-        </h1>
-        
-        {/* ส่วนหัวเอกสาร */}
-        <div className="space-y-2 text-base">
-          <p>
-            <strong>ส่วนราชการ</strong> โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
-          </p>
-          <p>
-            <strong>ที่</strong> ......................................................{' '}
-            <strong>วันที่</strong> ....................
-          </p>
-          <p>
-            <strong>เรื่อง</strong> รายงานผลการปฏิบัติงาน ประจำเดือน {monthLabel}
-          </p>
-        </div>
+    <div className="print-page w-[210mm] h-[297mm] bg-white p-[20mm] px-[25mm] mx-auto shadow-2xl flex flex-col font-sarabun mb-8 print:mb-0">
+      <div className="text-center mb-8">
+        <img 
+          src="/krut-3-cm.png"
+          alt="Garuda" 
+          className="w-[30mm] h-[auto] mx-auto mb-4"
+          loading="eager"
+          crossOrigin="anonymous"
+        />
+        <h1 className="text-2xl font-bold font-prompt text-black">บันทึกข้อความ</h1>
+      </div>
 
-        {/* เรียน */}
-        <p className="text-base mt-6">
-          <strong>เรียน</strong> ผู้อำนวยการโรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
+      <div className="space-y-3 mb-8 text-base text-black">
+        <div className="flex">
+          <span className="font-bold w-[25mm]">ส่วนราชการ</span>
+          <span>{ORG_NAME_TH}</span>
+        </div>
+        <div className="flex">
+          <span className="font-bold w-[25mm]">ที่</span>
+          <span className="w-1/2">.................................................</span>
+          <span className="font-bold w-[15mm]">วันที่</span>
+          <span>.................................................</span>
+        </div>
+        <div className="flex">
+          <span className="font-bold w-[25mm]">เรื่อง</span>
+          <span className="font-bold">รายงานผลการปฏิบัติงาน ประจำเดือน {month}</span>
+        </div>
+      </div>
+      
+      <div className="border-b border-black mb-6 w-full"></div>
+
+      <div className="space-y-6 text-base text-black leading-loose font-sarabun">
+        <p>
+          <span className="font-bold">เรียน</span> ผู้อำนวยการ{ORG_NAME_TH}
         </p>
         
-        {/* เนื้อหาหลัก - ย่อหน้าที่ 1 */}
-        <p className="text-base leading-relaxed text-justify indent-12 mt-4">
-          ตามที่ โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ ได้มอบหมายภาระงานให้ข้าราชการครูและบุคลากรทางการศึกษา 
-          ปฏิบัติหน้าที่ในการจัดการเรียนการสอน การดูแลช่วยเหลือนักเรียน งานบริหารทั่วไป และงานอื่นๆ ที่ได้รับมอบหมาย 
-          เพื่อขับเคลื่อนการดำเนินงานของสถานศึกษาให้เป็นไปอย่างมีประสิทธิภาพ 
-          และให้มีการรายงานผลการปฏิบัติงานเป็นประจำทุกเดือน นั้น
+        <p className="indent-12 text-justify">
+          ตามที่ข้าพเจ้า <span className="font-bold">{user.name}</span> ตำแหน่ง <span className="font-bold">{user.position || 'ครู'}</span> ได้รับมอบหมายให้ปฏิบัติหน้าที่ในการจัดการเรียนการสอน 
+          งานครูที่ปรึกษา งานฝ่ายบริหาร และหน้าที่อื่นๆ ตามที่ได้รับมอบหมาย ประจำเดือน <span className="font-bold">{month}</span> นั้น
         </p>
-        
-        {/* เนื้อหาหลัก - ย่อหน้าที่ 2 */}
-        <p className="text-base leading-relaxed text-justify indent-12">
-          บัดนี้ ข้าพเจ้า <span className="font-semibold">{user.name}</span> ตำแหน่ง{' '}
-          <span className="font-semibold">{user.position || '...........................'}</span>{' '}
-          ได้ดำเนินการปฏิบัติหน้าที่ตามภาระงานที่ได้รับมอบหมาย ประจำเดือน {monthLabel} เสร็จสิ้นเรียบร้อยแล้ว 
-          โดยมีรายละเอียดผลการดำเนินงานครอบคลุมด้านการจัดการเรียนรู้ ด้านการบริหารจัดการชั้นเรียน 
-          และด้านการพัฒนาตนเองและวิชาชีพ ดังปรากฏตามเอกสารแนบ จำนวนทั้งสิ้น{' '}
-          <span className="font-bold text-indigo-600">{totalEntries}</span> รายการ{' '}
-          เพื่อใช้เป็นข้อมูลในการตรวจสอบ ติดตาม และประเมินผลการปฏิบัติงาน 
-          ให้เป็นไปตามระเบียบและมาตรฐานวิชาชีพต่อไป
+
+        <p className="indent-12 text-justify">
+          ในการนี้ ข้าพเจ้าได้ดำเนินการปฏิบัติงานดังกล่าวเสร็จสิ้นเรียบร้อยแล้ว จึงขอนำส่งรายงานผลการปฏิบัติงาน 
+          ซึ่งประกอบด้วยรายละเอียดผลงานและหลักฐานเชิงประจักษ์ จำนวน <span className="font-bold text-lg">{totalEntries}</span> รายการ 
+          ดังรายละเอียดที่แนบมาพร้อมบันทึกข้อความฉบับนี้
         </p>
-        
-        {/* ปิดท้าย */}
-        <p className="text-base leading-relaxed text-justify indent-12 mt-4">
+
+        <p className="indent-12 mt-4">
           จึงเรียนมาเพื่อโปรดพิจารณา
         </p>
-        
-        {/* ส่วนลายเซ็น */}
-        <div className="mt-12 text-center">
-          <p className="text-base">ลงชื่อ ........................................</p>
-          <p className="text-base mt-2">( {user.name} )</p>
-          <p className="text-sm text-gray-600 mt-1">ผู้รายงาน</p>
+      </div>
+
+      <div className="mt-16 flex flex-col items-end px-10">
+        <div className="text-center w-[60mm]">
+          <p className="mb-8">ลงชื่อ ........................................</p>
+          <p className="font-bold">( {user.name} )</p>
+          <p className="text-sm mt-1">{user.position || 'ตำแหน่ง ...........................'}</p>
         </div>
+      </div>
+      
+      <div className="mt-auto">
+         <PageFooter pageNum={pageNum} docId="OFFICIAL-MEMO" />
       </div>
     </div>
   );
 };
 
-// V2: หน้าที่ 2 - Comments ของผู้บริหารทั้งสองท่าน (อยู่ในหน้าเดียวกัน)
-const ApprovalCommentsPage = ({ 
-  approval 
-}: { 
-  approval: Approval | null;
-}) => {
-  const deputyComment = approval?.deputyComment || "รับทราบ ขอบคุณมาก";
-  const directorComment = approval?.directorComment || "รับทราบ ขอบคุณมาก";
+// --- APPROVAL COMMENTS PAGE ---
+const ApprovalCommentsPage = ({ approval, pageNum }: { approval: Approval | null; pageNum: number }) => {
+  const deputyComment = approval?.deputyComment || "รับทราบ ผลการปฏิบัติงานเป็นไปตามเป้าหมาย";
+  const directorComment = approval?.directorComment || "ทราบ";
 
   return (
-    <div className="w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto flex flex-col justify-center page-break-after-always overflow-hidden">
-      {/* Executive Comments Section - อยู่ในหน้าเดียวกัน */}
-      <div className="space-y-6">
-        {/* Deputy Comment */}
-        <div className="border-2 border-gray-300 p-5 rounded-lg">
-          <p className="font-bold text-lg underline mb-3 text-gray-800">
-            ความเห็นรองผู้อำนวยการฝ่ายบริหารงานบุคคล
-          </p>
-          <div className="bg-white p-4 rounded border border-gray-200 min-h-[80px]">
-            <p className="text-gray-800 italic font-serif text-base leading-relaxed">
-              &ldquo;{deputyComment}&rdquo;
-            </p>
-          </div>
-          <div className="mt-6 text-center">
-            <div className="h-20 flex items-end justify-center -mb-3">
-              <img 
-                src="/sign/deputy.png" 
-                alt="Deputy Director Signature" 
-                className="object-contain"
-                style={{ maxWidth: '180px', maxHeight: '72px' }}
-                loading="eager"
-                crossOrigin="anonymous"
-              />
+    <div className="print-page w-[210mm] h-[297mm] bg-white p-[20mm] mx-auto shadow-2xl font-sarabun relative overflow-hidden mb-8 print:mb-0">
+      
+      {/* Decorative BG */}
+      <div className="absolute top-0 right-0 w-[100mm] h-[100mm] bg-gradient-to-bl from-slate-50 to-transparent pointer-events-none z-0" />
+
+      {/* Main Content Container */}
+      <div className="relative z-10 flex flex-col h-full">
+          <PageHeader title="ความเห็นผู้บริหาร" subTitle="Executive Comments & Approval" />
+          
+          <div className="border-b-2 border-slate-800 mt-2 mb-6"></div>
+
+          <div className="flex-grow flex flex-col justify-center gap-8">
+            
+            {/* Deputy Box */}
+            <div className="border border-slate-200 bg-white shadow-sm p-8 rounded-lg relative">
+                <div className="absolute -top-3 left-6 bg-slate-800 text-white px-4 py-1 text-sm font-bold shadow-md">
+                    ความเห็นรองผู้อำนวยการ
+                </div>
+                <div className="mt-4 min-h-[60px] italic text-slate-600 font-serif text-lg">
+                    &ldquo; {deputyComment} &rdquo;
+                </div>
+                <div className="mt-8 flex flex-col items-center">
+                    <div className="h-16 flex items-end justify-center mb-2">
+                        <img src="/sign/deputy.png" className="max-h-full max-w-full opacity-90 mix-blend-multiply" alt="signature" />
+                    </div>
+                    <div className="text-center min-w-[50mm]">
+                        <div className="border-b border-slate-300 w-full mb-1"></div>
+                        <p className="font-bold text-sm text-slate-800">( นางลลิภัทร  สืบเมือง )</p>
+                        <p className="text-xs text-slate-600 uppercase tracking-wide">รองผู้อำนวยการ{ORG_NAME_TH}</p>
+                    </div>
+                </div>
             </div>
-            <p className="text-base">ลงชื่อ ........................................</p>
-            <p className="text-base mt-2">( นางลลิภัทร  สืบเมือง )</p>
-            <p className="text-sm text-gray-600 mt-1">รองผู้อำนวยการฝ่ายบริหารงานบุคคล</p>
-          </div>
-        </div>
-        
-        {/* Director Comment */}
-        <div className="border-2 border-gray-300 p-5 rounded-lg mt-6">
-          <p className="font-bold text-lg underline mb-3 text-gray-800">
-            ความเห็นผู้อำนวยการโรงเรียน
-          </p>
-          <div className="bg-white p-4 rounded border border-gray-200 min-h-[80px]">
-            <p className="text-gray-800 italic font-serif text-base leading-relaxed">
-              &ldquo;{directorComment}&rdquo;
-            </p>
-          </div>
-          <div className="mt-6 text-center">
-            <div className="h-20 flex items-end justify-center -mb-3">
-              <img 
-                src="/sign/admin.png" 
-                alt="Director Signature" 
-                className="object-contain"
-                style={{ maxWidth: '180px', maxHeight: '72px' }}
-                loading="eager"
-                crossOrigin="anonymous"
-              />
+
+            {/* Director Box */}
+            <div className="border border-slate-200 bg-white shadow-sm p-8 rounded-lg relative">
+                <div className="absolute -top-3 left-6 bg-slate-800 text-white px-4 py-1 text-sm font-bold shadow-md flex items-center gap-2">
+                    <Globe className="w-3 h-3" />
+                    ความเห็นผู้อำนวยการสถานศึกษา
+                </div>
+                <div className="mt-4 min-h-[60px] italic text-slate-800 font-serif text-lg font-medium">
+                    &ldquo; {directorComment} &rdquo;
+                </div>
+                <div className="mt-10 flex flex-col items-center">
+                    <div className="h-20 flex items-end justify-center mb-2">
+                        <img src="/sign/admin.png" className="max-h-full opacity-90 mix-blend-multiply" alt="signature" />
+                    </div>
+                    <div className="text-center min-w-[50mm]">
+                        <div className="border-b border-slate-300 w-full mb-1"></div>
+                        <p className="font-bold text-base text-slate-900">( นายอัมพวาร  อิตุพร )</p>
+                        <p className="text-xs text-slate-600 uppercase tracking-wide">ผู้อำนวยการ{ORG_NAME_TH}</p>
+                    </div>
+                </div>
             </div>
-            <p className="text-base">ลงชื่อ ........................................</p>
-            <p className="text-base mt-2">( นายอัมพวาร  อิตุพร )</p>
-            <p className="text-sm text-gray-600 mt-1">ผู้อำนวยการโรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ</p>
+
           </div>
-        </div>
+
+          <div className="mt-auto border-t border-slate-200"></div>
+          <PageFooter pageNum={pageNum} />
       </div>
     </div>
   );
 };
 
-// Main Print Page Component (wrapped in Suspense)
+// --- MAIN CONTENT ---
 function PrintPageContent() {
   const { userData } = useAuth();
   const router = useRouter();
@@ -318,312 +337,179 @@ function PrintPageContent() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [approval, setApproval] = useState<Approval | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  // Get filter params from URL
   const filterMonth = searchParams.get('month') || '';
   const filterYear = searchParams.get('year') || '';
 
   useEffect(() => {
     if (!userData) return;
-
-    // ใช้ getDocs แทน onSnapshot สำหรับหน้าพิมพ์ (ไม่ต้อง real-time)
     const fetchEntries = async () => {
       const userId = userData.id;
       const entriesPath = getEntriesCollection().split('/');
       const entriesRef = collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]);
       
       try {
-        const { getDocs } = await import('firebase/firestore');
         const snapshot = await getDocs(entriesRef);
-        
         const entriesData: Entry[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
           if (data.userId === userId) {
-            entriesData.push({
-              id: doc.id,
-              ...data,
-            } as Entry);
+            entriesData.push({ id: doc.id, ...data } as Entry);
           }
         });
-
-        entriesData.sort((a, b) => {
-          const dateA = new Date(a.dateStart).getTime();
-          const dateB = new Date(b.dateStart).getTime();
-          return dateA - dateB;
-        });
-
+        entriesData.sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime());
         setEntries(entriesData);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching entries:', error);
+        console.error('Error', error);
         setLoading(false);
       }
     };
-
     fetchEntries();
   }, [userData]);
 
-  // Fetch approval data
   useEffect(() => {
     if (!userData || !filterMonth || !filterYear) return;
-
     const fetchApproval = async () => {
       const approvalMonth = `${filterYear}-${String(filterMonth).padStart(2, '0')}`;
       const docId = `${userData.id}_${approvalMonth}`;
-      
       const approvalsPath = getApprovalsCollection().split('/');
       const approvalRef = doc(db, approvalsPath[0], approvalsPath[1], approvalsPath[2], approvalsPath[3], approvalsPath[4], docId);
       
       try {
         const docSnap = await getDoc(approvalRef);
-        if (docSnap.exists()) {
-          setApproval(docSnap.data() as Approval);
-        }
-      } catch (error) {
-        console.error('Error fetching approval:', error);
-      }
+        if (docSnap.exists()) setApproval(docSnap.data() as Approval);
+      } catch (error) { console.error(error); }
     };
-
     fetchApproval();
   }, [userData, filterMonth, filterYear]);
 
-  // Filter entries by date
   const filteredEntries = useMemo(() => {
     if (!filterMonth || !filterYear) return entries;
-
     return entries.filter(entry => {
       const entryDate = new Date(entry.dateStart);
-      return (
-        entryDate.getFullYear() === parseInt(filterYear) &&
-        entryDate.getMonth() + 1 === parseInt(filterMonth)
-      );
+      return entryDate.getFullYear() === parseInt(filterYear) && entryDate.getMonth() + 1 === parseInt(filterMonth);
     });
   }, [entries, filterMonth, filterYear]);
 
-  const approvalMonth = filterMonth && filterYear 
-    ? `${filterYear}-${String(filterMonth).padStart(2, '0')}`
-    : '';
+  const monthLabel = filterMonth && filterYear ? new Date(`${filterYear}-${filterMonth}-01`).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }) : '';
 
-  // V2: Handle Save as PDF using html2pdf.js with progress indicator
-  const handleSavePDF = async () => {
-    setIsGeneratingPDF(true);
-    
-    try {
-      // รอให้รูปภาพทั้งหมดโหลดเสร็จก่อน
-      const images = document.querySelectorAll('#print-content img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if ((img as HTMLImageElement).complete) return Promise.resolve();
-          return new Promise(resolve => {
-            img.addEventListener('load', resolve);
-            img.addEventListener('error', resolve);
-          });
-        })
-      );
-
-      // Dynamic import html2pdf
-      const html2pdf = (await import('html2pdf.js')).default;
-      
-      const element = document.getElementById('print-content');
-      if (!element) {
-        alert('ไม่พบเนื้อหาที่จะบันทึก');
-        setIsGeneratingPDF(false);
-        return;
-      }
-
-      const monthLabel = new Date(approvalMonth + '-01').toLocaleDateString('th-TH', { 
-        month: 'long', 
-        year: 'numeric' 
-      });
-
-      const opt = {
-        margin: 0,
-        filename: `รายงานผลงาน_${monthLabel}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.85 }, // ลด quality จาก 0.98 → 0.85
-        html2canvas: { 
-          scale: 1.5, // ลด scale จาก 2 → 1.5 เพื่อความเร็ว
-          useCORS: true,
-          logging: false,
-          letterRendering: true,
-          scrollY: -window.scrollY,
-          scrollX: -window.scrollX,
-          windowWidth: document.documentElement.scrollWidth,
-          windowHeight: document.documentElement.scrollHeight
-        },
-        jsPDF: { 
-          unit: 'mm' as const, 
-          format: 'a4' as const, 
-          orientation: 'portrait' as const,
-          compress: true // เพิ่ม compression
-        },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
-
-      await html2pdf().set(opt).from(element).save();
-      
-      setIsGeneratingPDF(false);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึก PDF');
-      setIsGeneratingPDF(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 font-medium">กำลังโหลดข้อมูล...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
     <>
-      {/* Print Styles */}
       <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&family=Sarabun:wght@300;400;500;700&display=swap');
+        
+        .font-sarabun { font-family: 'Sarabun', sans-serif; }
+        .font-prompt { font-family: 'Prompt', sans-serif; }
+        
         @media print {
-          @page {
-            size: A4 portrait;
-            margin: 0;
+          @page { 
+            size: A4 portrait; 
+            margin: 0mm !important;
           }
-          body {
-            margin: 0;
-            padding: 0;
+          
+          body { 
+            visibility: hidden;
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          #print-root {
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 210mm !important; 
+            height: auto !important; 
+            margin: 0 !important;
+            padding: 0 !important;
+            z-index: 9999;
             background: white;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-            color-adjust: exact;
+            overflow: visible !important; 
           }
-          .no-print {
-            display: none !important;
+          #print-root * {
+            visibility: visible;
           }
-          .page-break-after-always {
-            page-break-after: always;
-            break-after: page;
+
+          .no-print { display: none !important; }
+
+          .print-page {
+            width: 210mm !important;
+            height: 297mm !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 15mm !important; 
+            position: relative !important;
+            overflow: hidden !important;
+            background: white !important;
           }
-          .page-break-before-always {
-            page-break-before: always;
-            break-before: page;
-          }
-          /* Ensure images load in print */
-          img {
-            max-width: 100%;
-            display: block;
-            page-break-inside: avoid;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+          
+          .print-page.p-\[20mm\] {
+              padding: 20mm !important;
           }
         }
       `}</style>
 
-      <div className="min-h-screen bg-gray-100 print:bg-white">
-        {/* Header Controls (Hidden on print) */}
-        <div className="no-print sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => router.back()}
-                  className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-indigo-600 transition"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="font-medium">ย้อนกลับ</span>
-                </button>
-                <div>
-                  <h1 className="text-lg font-bold text-gray-900">รายงานอย่างเป็นทางการ</h1>
-                  <p className="text-sm text-gray-500">
-                    {filteredEntries.length} รายการ
-                    {approvalMonth && ` | ${new Date(approvalMonth + '-01').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}`}
+      <div className="min-h-screen bg-slate-100 font-sarabun">
+        {/* Navigation Bar (No Print) */}
+        <div className="no-print sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-600 hover:text-slate-900">
+              <ArrowLeft size={20} /> <span className="font-bold font-prompt">ย้อนกลับ</span>
+            </button>
+            
+            <div className="flex items-center gap-4">
+               {/* --- เพิ่มข้อความแจ้งเตือนตรงนี้ --- */}
+               <div className="text-right hidden md:block">
+                  <p className="text-xs text-amber-700 font-medium bg-amber-50 px-3 py-1 rounded-full border border-amber-200 flex items-center justify-end gap-1">
+                    <AlertCircle size={14} />
+                    ก่อนพิมพ์ กรุณาเลือก ขนาด:A4 และ scale: 100% เพื่อให้ได้เอกสารตรงตามต้นฉบับ
                   </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleSavePDF}
-                  disabled={isGeneratingPDF}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={isGeneratingPDF ? 'กำลังประมวลผล อาจใช้เวลาสักครู่...' : 'บันทึกเป็น PDF'}
-                >
-                  {isGeneratingPDF ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="hidden sm:inline">กำลังสร้าง PDF...</span>
-                      <span className="sm:hidden">กำลังสร้าง...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileDown className="w-5 h-5" />
-                      บันทึกเป็น PDF
-                    </>
-                  )}
-                </motion.button>
-                
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => window.print()}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all"
-                >
-                  <Printer className="w-5 h-5" />
-                  พิมพ์เอกสาร
-                </motion.button>
-              </div>
+                  <p className="text-[10px] text-slate-400 mt-1 mr-1">{filteredEntries.length} รายการ | {monthLabel}</p>
+               </div>
+
+               <button onClick={() => window.print()} className="bg-slate-900 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 hover:bg-slate-800 transition shadow-lg">
+                 <Printer size={18} /> พิมพ์รายงาน
+               </button>
             </div>
           </div>
         </div>
 
-        {/* Print Content */}
-        <div className="py-8 print:py-0" id="print-content">
-          <div className="max-w-[210mm] mx-auto space-y-8 print:space-y-0">
-            {filteredEntries.length === 0 ? (
-              <div className="w-[210mm] h-[297mm] bg-white mx-auto flex items-center justify-center shadow-lg print:shadow-none">
-                <div className="text-center text-gray-400">
-                  <p className="text-lg font-medium">ไม่มีรายการในช่วงเวลาที่เลือก</p>
-                  <p className="text-sm mt-2">กรุณาเลือกช่วงเวลาที่มีข้อมูล</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Entry Pages */}
-                {filteredEntries.map((entry, index) => (
-                  <EntryPage key={entry.id} entry={entry} index={index} />
-                ))}
-                
-                {/* V2: หน้าที่ 1 - หัวเอกสารอนุมัติ (แยกหน้า) */}
-                <ApprovalHeaderPage 
-                  user={userData || { name: '', position: '' }} 
-                  month={approvalMonth}
-                  totalEntries={filteredEntries.length}
-                />
-                
-                {/* V2: หน้าที่ 2 - Comments ทั้งสองอยู่ในหน้าเดียวกัน */}
-                <ApprovalCommentsPage approval={approval} />
-              </>
-            )}
-          </div>
+        {/* Content Area */}
+        <div id="print-root" className="py-8 print:py-0 print:m-0">
+          {filteredEntries.map((entry, index) => (
+            <EntryPage key={entry.id} entry={entry} index={index} user={userData} />
+          ))}
+
+          {filteredEntries.length > 0 && (
+            <>
+              <ApprovalHeaderPage 
+                user={userData || { name: '', position: '' }} 
+                month={monthLabel} 
+                totalEntries={filteredEntries.length} 
+                pageNum={filteredEntries.length + 1}
+              />
+              <ApprovalCommentsPage 
+                approval={approval} 
+                pageNum={filteredEntries.length + 2}
+              />
+            </>
+          )}
         </div>
       </div>
     </>
   );
 }
 
-// Main component with Suspense wrapper
 export default function PrintPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 font-medium">กำลังโหลด...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
       <PrintPageContent />
     </Suspense>
   );

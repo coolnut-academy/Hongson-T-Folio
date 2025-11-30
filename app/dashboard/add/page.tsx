@@ -238,7 +238,7 @@ export default function AddEntryPage() {
                     value={formData.category}
                     onChange={handleInputChange}
                     required
-                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none"
+                    className="w-full p-3 sm:p-3.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm sm:text-base text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none min-h-[44px]"
                   >
                     {CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -280,7 +280,7 @@ export default function AddEntryPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {/* Level */}
                       <div className="space-y-1.5">
                         <label htmlFor="level" className="text-xs font-bold text-indigo-700">
@@ -291,7 +291,7 @@ export default function AddEntryPage() {
                           name="level"
                           value={formData.level}
                           onChange={handleInputChange}
-                          className="w-full p-2.5 border border-indigo-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                          className="w-full p-2.5 sm:p-3 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all min-h-[44px]"
                         >
                           {LEVELS.map((lvl) => (
                             <option key={lvl} value={lvl}>{lvl}</option>
@@ -311,7 +311,7 @@ export default function AddEntryPage() {
                           value={formData.organization}
                           onChange={handleInputChange}
                           placeholder="เช่น สพฐ., สพม., มหาวิทยาลัย"
-                          className="w-full p-2.5 border border-indigo-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                          className="w-full p-2.5 sm:p-3 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all min-h-[44px]"
                         />
                       </div>
                     </div>
@@ -349,7 +349,7 @@ export default function AddEntryPage() {
                     onChange={handleInputChange}
                     required
                     placeholder="เช่น เข้าร่วมอบรมเชิงปฏิบัติการ..."
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-12 pr-4 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm sm:text-base text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 min-h-[44px]"
                   />
                 </div>
               </div>
@@ -369,7 +369,7 @@ export default function AddEntryPage() {
                       value={formData.dateStart}
                       onChange={handleInputChange}
                       required
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm sm:text-base text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -385,7 +385,7 @@ export default function AddEntryPage() {
                       name="dateEnd"
                       value={formData.dateEnd}
                       onChange={handleInputChange}
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm sm:text-base text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -405,7 +405,7 @@ export default function AddEntryPage() {
                     onChange={handleInputChange}
                     rows={4}
                     placeholder="อธิบายรายละเอียดของงานเพิ่มเติม..."
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none placeholder:text-slate-400"
+                    className="w-full pl-12 pr-4 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm sm:text-base text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none placeholder:text-slate-400 min-h-[120px]"
                   />
                 </div>
               </div>
@@ -506,7 +506,7 @@ export default function AddEntryPage() {
               <button
                 type="button"
                 onClick={() => router.push('/dashboard')}
-                className="px-6 py-3 sm:py-3.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 font-medium transition-colors text-sm sm:text-base"
+                className="w-full sm:w-auto px-6 py-3 sm:py-3.5 border border-slate-200 rounded-lg sm:rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 font-medium transition-colors text-sm sm:text-base min-h-[44px]"
               >
                 ยกเลิก
               </button>
@@ -514,15 +514,19 @@ export default function AddEntryPage() {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={uploading}
-                className="px-8 py-3 sm:py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:from-indigo-800 active:to-indigo-900 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base"
+                className="w-full sm:w-auto px-8 py-3 sm:py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:from-indigo-800 active:to-indigo-900 text-white rounded-lg sm:rounded-xl font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px]"
               >
                 {uploading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> กำลังบันทึก...
+                    <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> 
+                    <span className="hidden sm:inline">กำลังบันทึก...</span>
+                    <span className="sm:hidden">กำลังบันทึก</span>
                   </>
                 ) : (
                   <>
-                    <Save className="w-5 h-5" /> บันทึกข้อมูล
+                    <Save className="w-4 h-4 sm:w-5 sm:h-5" /> 
+                    <span className="hidden sm:inline">บันทึกข้อมูล</span>
+                    <span className="sm:hidden">บันทึก</span>
                   </>
                 )}
               </motion.button>

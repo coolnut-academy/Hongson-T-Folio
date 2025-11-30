@@ -437,7 +437,7 @@ export default function DashboardPage() {
                     <select
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
-                      className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none appearance-none transition-all cursor-pointer"
+                      className="w-full pl-4 pr-10 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none appearance-none transition-all cursor-pointer min-h-[44px]"
                     >
                       <option value="All">แสดงทั้งหมด</option>
                       {CATEGORIES.map((c) => (
@@ -456,7 +456,7 @@ export default function DashboardPage() {
                       type="date"
                       value={filterDateStart}
                       onChange={(e) => setFilterDateStart(e.target.value)}
-                      className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                      className="w-full py-2.5 sm:py-3 px-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all min-h-[44px]"
                     />
                   </div>
                   <div>
@@ -465,7 +465,7 @@ export default function DashboardPage() {
                       type="date"
                       value={filterDateEnd}
                       onChange={(e) => setFilterDateEnd(e.target.value)}
-                      className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                      className="w-full py-2.5 sm:py-3 px-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -532,9 +532,9 @@ export default function DashboardPage() {
                                     e.stopPropagation();
                                     setOpenMenuId(openMenuId === entry.id ? null : entry.id);
                                   }}
-                                  className="p-2 bg-white/90 backdrop-blur-md hover:bg-white rounded-full shadow-sm transition-all"
+                                  className="p-2.5 sm:p-2 bg-white/90 backdrop-blur-md hover:bg-white active:bg-white/80 rounded-full shadow-sm transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
                                 >
-                                  <MoreVertical className="w-4 h-4 text-slate-600" />
+                                  <MoreVertical className="w-5 h-5 sm:w-4 sm:h-4 text-slate-600" />
                                 </button>
                                 
                                 {/* Dropdown Menu */}
@@ -552,9 +552,9 @@ export default function DashboardPage() {
                                           e.stopPropagation();
                                           handleEdit(entry.id);
                                         }}
-                                        className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center gap-3 text-sm font-medium text-slate-700 transition-colors"
+                                        className="w-full px-4 py-3.5 sm:py-3 text-left hover:bg-slate-50 active:bg-slate-100 flex items-center gap-3 text-sm font-medium text-slate-700 transition-colors min-h-[44px]"
                                       >
-                                        <Edit className="w-4 h-4 text-blue-600" />
+                                        <Edit className="w-4 h-4 text-blue-600 flex-shrink-0" />
                                         แก้ไขผลงาน
                                       </button>
                                       <button
@@ -562,9 +562,9 @@ export default function DashboardPage() {
                                           e.stopPropagation();
                                           handleDelete(entry.id, entry.title);
                                         }}
-                                        className="w-full px-4 py-3 text-left hover:bg-red-50 flex items-center gap-3 text-sm font-medium text-red-600 transition-colors border-t border-slate-100"
+                                        className="w-full px-4 py-3.5 sm:py-3 text-left hover:bg-red-50 active:bg-red-100 flex items-center gap-3 text-sm font-medium text-red-600 transition-colors border-t border-slate-100 min-h-[44px]"
                                       >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="w-4 h-4 flex-shrink-0" />
                                         ลบผลงาน
                                       </button>
                                     </motion.div>

@@ -1,21 +1,82 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Lock, Loader2, ArrowRight, Sparkles, Eye, EyeOff, Code2 } from 'lucide-react';
 import Image from 'next/image';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { getUsersCollection } from '@/lib/constants';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [checkingSiteStatus, setCheckingSiteStatus] = useState(true);
   
   const { signIn, userData } = useAuth();
   const router = useRouter();
+
+  // Check site status on mount
+  useEffect(() => {
+    // Check if user has admin maintenance access from localStorage first
+    if (typeof window !== 'undefined') {
+      const adminAccess = localStorage.getItem('adminMaintenanceAccess');
+      const accessTime = localStorage.getItem('adminMaintenanceAccessTime');
+      
+      // Check if access is valid (within 1 hour)
+      if (adminAccess === 'true' && accessTime) {
+        const timeDiff = Date.now() - parseInt(accessTime, 10);
+        const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+        
+        if (timeDiff < oneHour) {
+          // Valid admin access - clear it and allow login
+          localStorage.removeItem('adminMaintenanceAccess');
+          localStorage.removeItem('adminMaintenanceAccessTime');
+          setCheckingSiteStatus(false);
+          return; // Exit early - don't check site status
+        } else {
+          // Expired - clear it
+          localStorage.removeItem('adminMaintenanceAccess');
+          localStorage.removeItem('adminMaintenanceAccessTime');
+        }
+      }
+    }
+
+    // Use onSnapshot for real-time site status (more efficient than getDoc on every load)
+    const usersPath = getUsersCollection().split('/');
+    const settingsDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], 'system', 'settings');
+    
+    const unsubscribe = onSnapshot(settingsDocRef, (settingsDoc) => {
+      try {
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          // If site is disabled, redirect to maintenance page
+          if (data.siteEnabled === false) {
+            router.push('/maintenance');
+            return;
+          }
+        }
+        
+        // Site is enabled or no settings found - allow access
+        setCheckingSiteStatus(false);
+      } catch (error) {
+        console.error('Error checking site status:', error);
+        // On error, allow access (fail open)
+        setCheckingSiteStatus(false);
+      }
+    }, (error) => {
+      console.error('Error in site status listener:', error);
+      // On error, allow access (fail open)
+      setCheckingSiteStatus(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   // ✅ Logic เดิม: Redirect ถ้า Login อยู่แล้ว
   useEffect(() => {
@@ -45,6 +106,18 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // Show loading while checking site status
+  if (checkingSiteStatus) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">กำลังตรวจสอบสถานะระบบ...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 relative overflow-hidden font-sans">
@@ -255,5 +328,20 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">กำลังโหลด...</p>
+        </div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

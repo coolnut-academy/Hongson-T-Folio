@@ -15,7 +15,8 @@ import {
   X, 
   Leaf,
   TrendingUp,
-  Filter
+  Filter,
+  Settings
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -56,10 +57,20 @@ export default function AdminLayout({
     { label: 'คัดกรองข้อมูล', href: '/admin/filter', icon: Filter, roles: ['superadmin', 'admin', 'director', 'deputy'] },
     { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users, roles: ['superadmin'] }, // เฉพาะ Super Admin
     { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck, roles: ['superadmin', 'admin', 'director', 'deputy'] },
+    { label: 'การตั้งค่าระบบ', href: '/admin/settings', icon: Settings, roles: ['superadmin'] }, // เฉพาะ Super Admin
   ];
 
   // Filter nav items ตาม role ของผู้ใช้
-  const navItems = allNavItems.filter(item => item.roles.includes(userData.role));
+  // ตรวจสอบทั้ง role และ username เพื่อรองรับกรณีที่ username เป็น 'superadmin' หรือ 'admingod'
+  const navItems = allNavItems.filter(item => {
+    const userRole = userData.role;
+    const username = userData.username;
+    // ถ้า username เป็น 'superadmin' หรือ 'admingod' หรือ role เป็น 'superadmin' ให้แสดง "จัดการผู้ใช้" และ "การตั้งค่าระบบ"
+    if (item.href === '/admin/users' || item.href === '/admin/settings') {
+      return userRole === 'superadmin' || username === 'superadmin' || username === 'admingod';
+    }
+    return item.roles.includes(userRole);
+  });
 
   const handleSignOut = async () => {
     await signOut();

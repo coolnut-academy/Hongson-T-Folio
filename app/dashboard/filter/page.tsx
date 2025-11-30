@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { WorkCategorySelect } from '@/components/filter/WorkCategorySelect';
-import { TeacherSelector } from '@/components/filter/TeacherSelector';
 import { TimeRangeSelector } from '@/components/filter/TimeRangeSelector';
 import { FilterButton } from '@/components/filter/FilterButton';
 import { ResultsList } from '@/components/filter/ResultsList';
 import { getWorkRecordsFiltered, type WorkRecord, type FilterParams } from '@/lib/filterData';
+import { useAuth } from '@/context/AuthContext';
 import { Filter, Loader2, FileDown } from 'lucide-react';
 import AdminWorkFilterPdfDocument from '@/components/pdf/AdminWorkFilterPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
@@ -14,10 +14,9 @@ import { prepareWorkRecordsForPdf } from '@/lib/pdfUtils';
 
 type TimeRangeType = 'all' | 'year' | 'month' | 'custom';
 
-export default function AdminDataFilteringPage() {
+export default function UserWorkReportPage() {
+  const { userData } = useAuth();
   const [workCategory, setWorkCategory] = useState('งานทั้งหมด');
-  const [teacherId, setTeacherId] = useState<string | null>(null);
-  const [subjectGroup, setSubjectGroup] = useState<string | null>(null);
   const [timeRangeType, setTimeRangeType] = useState<TimeRangeType>('all');
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
@@ -29,10 +28,8 @@ export default function AdminDataFilteringPage() {
   // Store current filter state for PDF metadata
   const [currentFilters, setCurrentFilters] = useState<FilterParams>({});
 
-  const handleTeacherChange = (tId: string | null, sGroup: string | null) => {
-    setTeacherId(tId);
-    setSubjectGroup(sGroup);
-  };
+  // Get current teacher ID from auth
+  const teacherId = userData?.id;
 
   const handleTimeRangeChange = (
     type: TimeRangeType,
@@ -45,12 +42,16 @@ export default function AdminDataFilteringPage() {
   };
 
   const handleFilter = async () => {
+    if (!teacherId) {
+      alert('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
+      return;
+    }
+
     setLoading(true);
     
     const filters: FilterParams = {
       work_category: workCategory !== 'งานทั้งหมด' ? workCategory : undefined,
-      teacher_id: teacherId || undefined,
-      subject_group: !teacherId ? subjectGroup || undefined : undefined,
+      teacher_id: teacherId,
       time_range: timeRangeType,
       start_date: startDate,
       end_date: endDate,
@@ -63,6 +64,7 @@ export default function AdminDataFilteringPage() {
       setCurrentFilters(filters); // Store filters for PDF metadata
     } catch (error) {
       console.error('Error fetching work records:', error);
+      alert('เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง');
     } finally {
       setLoading(false);
     }
@@ -83,8 +85,8 @@ export default function AdminDataFilteringPage() {
       // Build filter metadata for PDF
       const filterMeta = {
         workCategory: currentFilters.work_category || workCategory !== 'งานทั้งหมด' ? workCategory : undefined,
-        teacherName: preparedResults[0]?.teacher_name, // Use first result's teacher if filtered
-        subjectGroup: currentFilters.subject_group || subjectGroup || undefined,
+        teacherName: preparedResults[0]?.teacher_name, // Use first result's teacher (current user)
+        subjectGroup: preparedResults[0]?.subject_group, // Use first result's subject group
         timeRange: timeRangeType !== 'all' ? timeRangeType : undefined,
       };
 
@@ -97,7 +99,7 @@ export default function AdminDataFilteringPage() {
       );
 
       // Generate filename
-      const filename = `รายงานการคัดกรอง_${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = `รายงานผลงานของฉัน_${new Date().toISOString().split('T')[0]}.pdf`;
 
       // Download PDF
       await downloadPdf(pdfDocument, filename);
@@ -111,7 +113,7 @@ export default function AdminDataFilteringPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Print styles */}
+      {/* Print styles - optimized for user page to show 1-2 items on first page */}
       <style jsx global>{`
         @media print {
           @page {
@@ -123,12 +125,16 @@ export default function AdminDataFilteringPage() {
             background: white !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           /* Optimize rendering performance */
           html, body {
             overflow: visible !important;
             height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           /* Hide non-print UI elements */
@@ -141,27 +147,60 @@ export default function AdminDataFilteringPage() {
             display: none !important;
           }
 
-          /* Show print-only content */
+          /* Show print-only content and remove all spacing */
           .print-only {
             display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
-          /* Force page break after every 2nd card */
+          /* Remove all margins and padding from print container */
+          body > div,
+          .print-only > div {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Print page cards - ensure they don't break inside */
           .print-page {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+            margin-bottom: 0 !important;
           }
           
-          /* Page break after every odd card (1st, 3rd, 5th...) */
-          .print-page:nth-child(odd) {
-            page-break-after: avoid;
-            break-after: avoid;
+          /* First card on first page - no top margin, start at top */
+          .print-page:first-child {
+            page-break-before: auto !important;
+            break-before: auto !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
           }
           
-          /* Page break after every even card (2nd, 4th, 6th...) */
-          .print-page:nth-child(even) {
-            page-break-after: always;
-            break-after: always;
+          /* Second card on first page - small gap, no page break before */
+          .print-page:nth-child(2) {
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+            margin-top: 4mm !important;
+            margin-bottom: 0 !important;
+          }
+          
+          /* Page break after 2nd card (end of first page) */
+          .print-page:nth-child(2) {
+            page-break-after: always !important;
+            break-after: always !important;
+          }
+          
+          /* Third card onwards - start new page */
+          .print-page:nth-child(n+3) {
+            page-break-before: always !important;
+            break-before: always !important;
+            margin-top: 0 !important;
+          }
+          
+          /* Page break after every even card starting from 4th (4th, 6th, 8th...) */
+          .print-page:nth-child(2n):not(:first-child):not(:nth-child(2)) {
+            page-break-after: always !important;
+            break-after: always !important;
           }
 
           /* Prevent images from breaking across pages */
@@ -198,12 +237,6 @@ export default function AdminDataFilteringPage() {
           .border-stone-300 {
             border-color: #d6d3d1 !important;
           }
-
-          /* Remove margins from body for clean print */
-          body > div {
-            margin: 0 !important;
-            padding: 0 !important;
-          }
         }
 
         /* Hide print-only content on screen */
@@ -214,20 +247,22 @@ export default function AdminDataFilteringPage() {
         }
       `}</style>
 
-      {/* Page Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
-            <Filter className="w-5 h-5" />
+      {/* Page Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Page Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
+              <Filter className="w-5 h-5" />
+            </div>
+            <h1 className="text-2xl font-bold text-stone-800">
+              รายงานผลงานของฉัน
+            </h1>
           </div>
-          <h1 className="text-2xl font-bold text-stone-800">
-            การคัดกรองข้อมูลผลงานครู
-          </h1>
+          <p className="text-stone-500 text-sm">
+            คัดกรองและสรุปผลงานของคุณตามหมวดงานและช่วงเวลา
+          </p>
         </div>
-        <p className="text-stone-500 text-sm">
-          คัดกรองและค้นหาผลงานของครูทั้งหมดในระบบตามหมวดหมู่ ช่วงเวลา และกลุ่มสาระการเรียนรู้
-        </p>
-      </div>
 
         {/* Filter Section */}
         <div className="filter-section bg-white rounded-xl sm:rounded-2xl border border-stone-200 p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm no-print">
@@ -243,9 +278,6 @@ export default function AdminDataFilteringPage() {
               onChange={setWorkCategory}
             />
 
-            {/* Teacher / Subject Group Selector */}
-            <TeacherSelector onTeacherChange={handleTeacherChange} />
-
             {/* Time Range */}
             <TimeRangeSelector onTimeRangeChange={handleTimeRangeChange} />
 
@@ -256,71 +288,71 @@ export default function AdminDataFilteringPage() {
           </div>
         </div>
 
-      {/* Results Section */}
-      {hasSearched && (
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-sm">
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6 no-print">
-            <h2 className="text-lg sm:text-xl font-semibold text-stone-800">
-              ผลการค้นหา
-            </h2>
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Save as PDF Button */}
-              <button
-                onClick={handleSavePDF}
-                disabled={isGeneratingPDF}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px] text-sm sm:text-base"
-                title="บันทึกเป็น PDF"
-              >
-                {isGeneratingPDF ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="hidden sm:inline">กำลังสร้าง PDF...</span>
-                    <span className="sm:hidden">กำลังสร้าง...</span>
-                  </>
-                ) : (
-                  <>
-                    <FileDown className="w-4 h-4" />
-                    <span className="hidden sm:inline">บันทึก PDF</span>
-                    <span className="sm:hidden">PDF</span>
-                  </>
-                )}
-              </button>
+        {/* Results Section */}
+        {hasSearched && (
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-sm">
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6 no-print">
+              <h2 className="text-lg sm:text-xl font-semibold text-stone-800">
+                ผลการค้นหา
+              </h2>
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Save as PDF Button */}
+                <button
+                  onClick={handleSavePDF}
+                  disabled={isGeneratingPDF}
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px] text-sm sm:text-base"
+                  title="บันทึกเป็น PDF"
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="hidden sm:inline">กำลังสร้าง PDF...</span>
+                      <span className="sm:hidden">กำลังสร้าง...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="w-4 h-4" />
+                      <span className="hidden sm:inline">บันทึก PDF</span>
+                      <span className="sm:hidden">PDF</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* Results List */}
+            <ResultsList results={results} />
           </div>
+        )}
 
-          {/* Results List */}
-          <ResultsList results={results} />
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!hasSearched && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center shadow-sm">
-          <div className="text-stone-300 mb-4">
-            <svg
-              className="mx-auto h-20 w-20"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
+        {/* Empty State */}
+        {!hasSearched && (
+          <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center shadow-sm">
+            <div className="text-stone-300 mb-4">
+              <svg
+                className="mx-auto h-20 w-20"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-stone-800 mb-2">
+              ยังไม่มีการค้นหา
+            </h3>
+            <p className="text-stone-500 text-sm">
+              เลือกหมวดงานและช่วงเวลาที่ต้องการ จากนั้นกดปุ่ม คัดกรองข้อมูล เพื่อดูรายงานผลงานของคุณ
+            </p>
           </div>
-          <h3 className="text-lg font-medium text-stone-800 mb-2">
-            เริ่มต้นการค้นหา
-          </h3>
-          <p className="text-stone-500 text-sm">
-            เลือกเงื่อนไขการคัดกรองด้านบน และกดปุ่ม คัดกรองข้อมูล เพื่อแสดงผลลัพธ์
-          </p>
-        </div>
-      )}
-
+        )}
+      </div>
     </div>
   );
 }

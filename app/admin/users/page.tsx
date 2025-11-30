@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { collection, getDocs, setDoc, deleteDoc, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Trash2, Plus, X } from 'lucide-react';
 import { getUsersCollection, DEPARTMENTS } from '@/lib/constants';
+import { useAuth } from '@/context/AuthContext';
 
 interface User {
   id: string;
@@ -24,6 +26,8 @@ const roles = [
 ];
 
 export default function UsersPage() {
+  const { userData, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -37,6 +41,17 @@ export default function UsersPage() {
   });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Check if user is superadmin
+  useEffect(() => {
+    if (!authLoading) {
+      if (!userData) {
+        router.push('/login');
+      } else if (userData.role !== 'superadmin') {
+        router.push('/admin/dashboard');
+      }
+    }
+  }, [userData, authLoading, router]);
 
   useEffect(() => {
     const usersPath = getUsersCollection().split('/');
@@ -124,7 +139,7 @@ export default function UsersPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading || !userData || userData.role !== 'superadmin') {
     return (
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
