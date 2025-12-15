@@ -9,6 +9,8 @@ import { db, storage } from '@/lib/firebase';
 import { getEntriesCollection } from '@/lib/constants';
 import { CATEGORIES, LEVELS } from '@/lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
+// ✅ Import Library บีบอัดรูป
+import imageCompression from 'browser-image-compression';
 import { 
   UploadCloud, 
   X, 
@@ -26,7 +28,8 @@ import {
 // V2: Strict image limits
 const MIN_IMAGES = 1;
 const MAX_IMAGES = 4;
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes
+// ✅ ปรับเป็น 25MB ให้เหมือนหน้า Add
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 export default function EditEntryPage() {
   const { userData } = useAuth();
@@ -52,6 +55,8 @@ export default function EditEntryPage() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  // ✅ เพิ่ม state สำหรับ Loading การบีบอัด
+  const [isCompressing, setIsCompressing] = useState(false);
   const [error, setError] = useState('');
 
   // V2: Check if conditional fields should be shown
@@ -74,7 +79,6 @@ export default function EditEntryPage() {
         if (entrySnap.exists()) {
           const data = entrySnap.data();
           
-          // Check if this entry belongs to the current user
           if (data.userId !== userData.id) {
             alert('คุณไม่มีสิทธิ์แก้ไขผลงานนี้');
             router.push('/dashboard');
@@ -87,7 +91,6 @@ export default function EditEntryPage() {
             description: data.description || '',
             dateStart: data.dateStart || '',
             dateEnd: data.dateEnd || '',
-            // V2: Load conditional fields
             activityName: data.activityName || '',
             level: data.level || LEVELS[0],
             organization: data.organization || '',
@@ -117,46 +120,73 @@ export default function EditEntryPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // V2: STRICT Image Upload Validation
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  // ✅ V2: Updated Image Upload with Compression
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
-    if (files.length === 0) {
-      return;
-    }
+    if (files.length === 0) return;
 
+    // เช็คจำนวนรูปรวม (เก่า + ใหม่ที่จะเพิ่ม)
     const totalCount = existingImages.length + imageFiles.length + files.length;
     if (totalCount > MAX_IMAGES) {
       alert(`❌ จำกัดสูงสุด ${MAX_IMAGES} รูปเท่านั้น\nคุณมี ${existingImages.length + imageFiles.length} รูปอยู่แล้ว`);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    // Validation: Check each file size (max 4MB)
+    // เช็คขนาดไฟล์ (เตือนถ้าเกิน 25MB)
     const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
     if (oversizedFiles.length > 0) {
       const filesInfo = oversizedFiles.map(f => 
         `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`
       ).join('\n');
-      alert(`❌ ไฟล์ขนาดใหญ่เกิน 4MB:\n\n${filesInfo}\n\nกรุณาเลือกไฟล์ที่มีขนาดเล็กกว่า 4MB`);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      alert(`❌ ไฟล์ขนาดใหญ่เกิน 25MB:\n\n${filesInfo}\n\nระบบรองรับรูปสูงสุด 25MB ต่อรูป เพื่อป้องกันเครื่องค้างครับ`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    const newFiles = [...imageFiles, ...files];
-    setImageFiles(newFiles);
+    // เริ่มกระบวนการบีบอัด
+    setIsCompressing(true);
+    setError('');
 
-    files.forEach((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreviews((prev) => [...prev, previewUrl]);
-    });
+    try {
+      const compressionOptions = {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+      };
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      const compressedFiles: File[] = [];
+      for (const file of files) {
+        try {
+          const compressedFile = await imageCompression(file, compressionOptions);
+          compressedFiles.push(compressedFile);
+        } catch (compressionError) {
+          console.error(`Failed to compress ${file.name}:`, compressionError);
+          throw new Error(`ไม่สามารถบีบอัดไฟล์ ${file.name} ได้`);
+        }
+      }
+
+      // เพิ่มไฟล์ที่บีบอัดแล้วเข้า State
+      const newFiles = [...imageFiles, ...compressedFiles];
+      setImageFiles(newFiles);
+
+      // สร้าง Preview
+      compressedFiles.forEach((file) => {
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreviews((prev) => [...prev, previewUrl]);
+      });
+
+    } catch (err: unknown) {
+      console.error('Image compression error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบีบอัดรูปภาพ';
+      setError(errorMessage);
+      alert(`❌ ${errorMessage}`);
+    } finally {
+      setIsCompressing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -184,7 +214,7 @@ export default function EditEntryPage() {
       return;
     }
 
-    // V2: Validate image count (must have 1-4 images)
+    // Validate image count
     const totalImageCount = existingImages.length + imageFiles.length;
     if (totalImageCount < MIN_IMAGES) {
       setError(`กรุณามีรูปภาพอย่างน้อย ${MIN_IMAGES} รูป`);
@@ -196,7 +226,6 @@ export default function EditEntryPage() {
       return;
     }
 
-    // V2: Validate conditional fields
     if (showConditionalFields) {
       if (!formData.activityName || !formData.level || !formData.organization) {
         setError('กรุณากรอกข้อมูลเพิ่มเติม (ชื่อกิจกรรม, ระดับ, หน่วยงาน) ให้ครบถ้วน');
@@ -223,7 +252,6 @@ export default function EditEntryPage() {
       const entriesPath = getEntriesCollection().split('/');
       const entryRef = doc(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4], entryId);
 
-      // V2: Build update data with conditional fields
       const updateData: Record<string, unknown> = {
         category: formData.category,
         title: formData.title,
@@ -234,13 +262,11 @@ export default function EditEntryPage() {
         updatedAt: new Date(),
       };
 
-      // V2: Add conditional fields if applicable
       if (showConditionalFields) {
         updateData.activityName = formData.activityName;
         updateData.level = formData.level;
         updateData.organization = formData.organization;
       } else {
-        // Clear conditional fields if not applicable
         updateData.activityName = null;
         updateData.level = null;
         updateData.organization = null;
@@ -320,7 +346,7 @@ export default function EditEntryPage() {
                 </div>
               </div>
 
-              {/* V2: Conditional Fields Section */}
+              {/* Conditional Fields Section */}
               <AnimatePresence mode="wait">
                 {showConditionalFields && (
                   <motion.div
@@ -334,7 +360,6 @@ export default function EditEntryPage() {
                       <PenTool className="w-4 h-4 mr-2" /> รายละเอียดเพิ่มเติม
                     </h4>
                     
-                    {/* Activity Name */}
                     <div className="space-y-1.5">
                       <label htmlFor="activityName" className="text-xs font-bold text-indigo-700">
                         ชื่อการแข่งขัน/พัฒนาตนเอง <span className="text-rose-500">*</span>
@@ -351,7 +376,6 @@ export default function EditEntryPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Level */}
                       <div className="space-y-1.5">
                         <label htmlFor="level" className="text-xs font-bold text-indigo-700">
                           ระดับ <span className="text-rose-500">*</span>
@@ -369,7 +393,6 @@ export default function EditEntryPage() {
                         </select>
                       </div>
 
-                      {/* Organization */}
                       <div className="space-y-1.5">
                         <label htmlFor="organization" className="text-xs font-bold text-indigo-700">
                           หน่วยงานที่มอบ <span className="text-rose-500">*</span>
@@ -389,7 +412,6 @@ export default function EditEntryPage() {
                 )}
               </AnimatePresence>
 
-              {/* V2: Others Category Hint */}
               {showOthersHint && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -398,13 +420,12 @@ export default function EditEntryPage() {
                 >
                   <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-900">หมวด "อื่นๆ"</p>
+                    <p className="text-sm font-semibold text-amber-900">หมวดอื่นๆ</p>
                     <p className="text-xs text-amber-700 mt-1">กรุณาระบุรายละเอียดให้ชัดเจนในช่องชื่องาน และคำอธิบาย</p>
                   </div>
                 </motion.div>
               )}
 
-              {/* Title Input */}
               <div className="space-y-2">
                 <label htmlFor="title" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
                   ชื่องาน <span className="text-rose-500">*</span>
@@ -424,7 +445,6 @@ export default function EditEntryPage() {
                 </div>
               </div>
 
-              {/* Date Range Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <label htmlFor="dateStart" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
@@ -461,7 +481,6 @@ export default function EditEntryPage() {
                 </div>
               </div>
 
-              {/* Description Area */}
               <div className="space-y-2">
                 <label htmlFor="description" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
                   รายละเอียดการปฏิบัติงาน
@@ -490,7 +509,7 @@ export default function EditEntryPage() {
                   หลักฐานรูปภาพ <span className="text-rose-500">*</span>
                 </label>
                 <p className="text-xs text-rose-600 font-semibold mt-1">
-                  จำกัด {MIN_IMAGES}-{MAX_IMAGES} รูป เท่านั้น (ไม่เกิน 4MB/รูป)
+                  จำกัด {MIN_IMAGES}-{MAX_IMAGES} รูป เท่านั้น (ไม่เกิน 25MB/รูป)
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
                   คุณมี {existingImages.length + imageFiles.length} รูปแล้ว
@@ -560,17 +579,29 @@ export default function EditEntryPage() {
                 </div>
               )}
 
-              {/* Upload Button */}
+              {/* Upload Button: ปรับปรุง Loading State */}
               {(existingImages.length + imageFiles.length) < MAX_IMAGES && (
                 <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-300 active:bg-indigo-100 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all group"
+                  onClick={() => !isCompressing && fileInputRef.current?.click()}
+                  className={`border-2 border-dashed border-indigo-200 bg-indigo-50/50 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center transition-all group ${
+                    isCompressing 
+                      ? 'opacity-60 cursor-not-allowed' 
+                      : 'hover:bg-indigo-50 hover:border-indigo-300 active:bg-indigo-100 cursor-pointer'
+                  }`}
                 >
                   <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-active:scale-95 transition-transform">
-                    <UploadCloud className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500" />
+                    {isCompressing ? (
+                      <Loader2 className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500 animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500" />
+                    )}
                   </div>
-                  <p className="text-sm sm:text-base font-medium text-indigo-900">คลิกเพื่อเพิ่มรูปภาพ</p>
-                  <p className="text-xs text-indigo-600/60 mt-1">หรือแตะที่นี่บนมือถือ</p>
+                  <p className="text-sm sm:text-base font-medium text-indigo-900">
+                    {isCompressing ? 'กำลังบีบอัดรูปภาพ...' : 'คลิกเพื่อเพิ่มรูปภาพ'}
+                  </p>
+                  <p className="text-xs text-indigo-600/60 mt-1">
+                    {isCompressing ? 'โปรดรอสักครู่' : 'หรือแตะที่นี่บนมือถือ'}
+                  </p>
                 </div>
               )}
 
@@ -580,6 +611,7 @@ export default function EditEntryPage() {
                 accept="image/*"
                 multiple
                 onChange={handleImageUpload}
+                disabled={isCompressing}
                 className="hidden"
               />
             </div>
@@ -612,12 +644,16 @@ export default function EditEntryPage() {
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                disabled={uploading}
+                disabled={uploading || isCompressing}
                 className="px-8 py-3 sm:py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:from-indigo-800 active:to-indigo-900 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base"
               >
                 {uploading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" /> กำลังบันทึก...
+                  </>
+                ) : isCompressing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> กำลังบีบอัด...
                   </>
                 ) : (
                   <>

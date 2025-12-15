@@ -9,6 +9,7 @@ import { db, storage } from '@/lib/firebase';
 import { getEntriesCollection } from '@/lib/constants';
 import { CATEGORIES, LEVELS } from '@/lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
+import imageCompression from 'browser-image-compression';
 import { 
   UploadCloud, 
   X, 
@@ -26,7 +27,7 @@ import {
 // V2: Strict image limits
 const MIN_IMAGES = 1;
 const MAX_IMAGES = 4;
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB in bytes
 
 export default function AddEntryPage() {
   const { userData } = useAuth();
@@ -48,6 +49,7 @@ export default function AddEntryPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [error, setError] = useState('');
 
   // V2: Check if conditional fields should be shown
@@ -64,8 +66,8 @@ export default function AddEntryPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // V2: STRICT Image Upload Validation
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  // V2: STRICT Image Upload Validation with Compression
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
     // Validation 1: Check file count (must be 1-4 total)
@@ -82,30 +84,64 @@ export default function AddEntryPage() {
       return;
     }
 
-    // Validation 2: Check each file size (max 4MB)
+    //// Validation 2: Check each file size (max 25MB) before compression
+    
     const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
     if (oversizedFiles.length > 0) {
       const filesInfo = oversizedFiles.map(f => 
         `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`
       ).join('\n');
-      alert(`❌ ไฟล์ขนาดใหญ่เกิน 4MB:\n\n${filesInfo}\n\nกรุณาเลือกไฟล์ที่มีขนาดเล็กกว่า 4MB`);
+      alert(`❌ ไฟล์ขนาดใหญ่เกิน 25MB:\n\n${filesInfo}\n\nกรุณาเลือกไฟล์ที่มีขนาดเล็กกว่า 4MB`);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       return;
     }
+      
 
-    // All validations passed - proceed with upload
-    const newFiles = [...imageFiles, ...files];
-    setImageFiles(newFiles);
+    // Compression Process
+    setIsCompressing(true);
+    setError('');
 
-    files.forEach((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreviews((prev) => [...prev, previewUrl]);
-    });
+    try {
+      const compressionOptions = {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+      };
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      // Compress all files
+      const compressedFiles: File[] = [];
+      for (const file of files) {
+        try {
+          const compressedFile = await imageCompression(file, compressionOptions);
+          compressedFiles.push(compressedFile);
+        } catch (compressionError) {
+          console.error(`Failed to compress ${file.name}:`, compressionError);
+          throw new Error(`ไม่สามารถบีบอัดไฟล์ ${file.name} ได้`);
+        }
+      }
+
+      // All compressions successful - proceed with upload
+      const newFiles = [...imageFiles, ...compressedFiles];
+      setImageFiles(newFiles);
+
+      // Create previews from compressed files
+      compressedFiles.forEach((file) => {
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreviews((prev) => [...prev, previewUrl]);
+      });
+
+    } catch (err: unknown) {
+      console.error('Image compression error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบีบอัดรูปภาพ';
+      setError(errorMessage);
+      alert(`❌ ${errorMessage}`);
+    } finally {
+      setIsCompressing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -328,7 +364,7 @@ export default function AddEntryPage() {
                 >
                   <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-900">หมวด "อื่นๆ"</p>
+                    <p className="text-sm font-semibold text-amber-900">หมวดอื่นๆ</p>
                     <p className="text-xs text-amber-700 mt-1">กรุณาระบุรายละเอียดให้ชัดเจนในช่องชื่องาน และคำอธิบาย</p>
                   </div>
                 </motion.div>
@@ -429,14 +465,26 @@ export default function AddEntryPage() {
 
               {/* Upload Dropzone Style */}
               <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-300 active:bg-indigo-100 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all group mb-4 sm:mb-6"
+                onClick={() => !isCompressing && fileInputRef.current?.click()}
+                className={`border-2 border-dashed border-indigo-200 bg-indigo-50/50 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center transition-all mb-4 sm:mb-6 ${
+                  isCompressing 
+                    ? 'opacity-60 cursor-not-allowed' 
+                    : 'hover:bg-indigo-50 hover:border-indigo-300 active:bg-indigo-100 cursor-pointer group'
+                }`}
               >
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-active:scale-95 transition-transform">
-                  <UploadCloud className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500" />
+                  {isCompressing ? (
+                    <Loader2 className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500 animate-spin" />
+                  ) : (
+                    <UploadCloud className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-500" />
+                  )}
                 </div>
-                <p className="text-sm sm:text-base font-medium text-indigo-900">คลิกเพื่อเลือกรูปภาพ</p>
-                <p className="text-xs text-indigo-600/60 mt-1">หรือแตะที่นี่บนมือถือ</p>
+                <p className="text-sm sm:text-base font-medium text-indigo-900">
+                  {isCompressing ? 'กำลังบีบอัดรูปภาพ...' : 'คลิกเพื่อเลือกรูปภาพ'}
+                </p>
+                <p className="text-xs text-indigo-600/60 mt-1">
+                  {isCompressing ? 'โปรดรอสักครู่' : 'หรือแตะที่นี่บนมือถือ'}
+                </p>
                 <input
                   ref={fileInputRef}
                   id="file-upload"
@@ -445,6 +493,7 @@ export default function AddEntryPage() {
                   multiple
                   accept="image/*"
                   onChange={handleImageUpload}
+                  disabled={isCompressing}
                 />
               </div>
 
@@ -513,7 +562,7 @@ export default function AddEntryPage() {
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                disabled={uploading}
+                disabled={uploading || isCompressing}
                 className="w-full sm:w-auto px-8 py-3 sm:py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:from-indigo-800 active:to-indigo-900 text-white rounded-lg sm:rounded-xl font-bold shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base min-h-[44px]"
               >
                 {uploading ? (
@@ -521,6 +570,12 @@ export default function AddEntryPage() {
                     <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> 
                     <span className="hidden sm:inline">กำลังบันทึก...</span>
                     <span className="sm:hidden">กำลังบันทึก</span>
+                  </>
+                ) : isCompressing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> 
+                    <span className="hidden sm:inline">กำลังบีบอัดรูปภาพ...</span>
+                    <span className="sm:hidden">กำลังบีบอัด</span>
                   </>
                 ) : (
                   <>
