@@ -453,16 +453,16 @@ While this is a private school project, contributions for bug fixes and improvem
 
 ## 📞 Contact & Support
 
-**Developer**: Satit (CoolNut Academy)  
-**School**: Hongson Nongbua School  
+**Developer**: Satit Siriwach (CoolNut Academy)  
+**School**: Hongsonsuksa School, Maehongson Province
 **Project Type**: Educational Portfolio Management System
 
 ---
 
 ## 📄 License
 
-This project is proprietary software developed for Hongson School.  
-© 2024 Hongson School. All rights reserved.
+This project is proprietary software developed for Hongsonsuksa School.  
+© 2025 Hongsonsuksa School. All rights reserved.
 
 ---
 
