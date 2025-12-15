@@ -12,13 +12,27 @@ const serviceAccount = {
 
 if (!getApps().length) {
   if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-    throw new Error('Missing Firebase Admin credentials in .env.local');
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('⚠️ Firebase Admin SDK not fully initialized. Missing credentials in Vercel Environment Variables.');
+      console.warn('⚠️ Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in Vercel Dashboard.');
+      console.warn('⚠️ Some admin features will not work until credentials are set.');
+      // Initialize with minimal config to prevent build failure
+      initializeApp({
+        projectId: serviceAccount.projectId || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project',
+      });
+    } else {
+      console.warn('⚠️ Firebase Admin SDK not fully initialized. Missing credentials. Auth operations will fail.');
+      initializeApp({
+        projectId: serviceAccount.projectId || 'demo-project-id',
+      });
+    }
+  } else {
+    initializeApp({
+      credential: cert(serviceAccount),
+      projectId: serviceAccount.projectId, // Explicitly pass projectId here too
+    });
+    console.log('✅ Firebase Admin initialized successfully');
   }
-
-  initializeApp({
-    credential: cert(serviceAccount),
-    projectId: serviceAccount.projectId, // Explicitly pass projectId here too
-  });
 }
 
 export const adminAuth = getAuth();
