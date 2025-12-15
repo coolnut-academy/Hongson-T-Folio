@@ -112,7 +112,12 @@ export const getKpiData = async (
     const usersSnapshot = await getDocs(usersRef);
     const users: User[] = usersSnapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() } as User))
-      .filter((u) => u.role !== 'admin' && u.role !== 'director' && u.role !== 'deputy');
+      .filter((u) => 
+        u.role !== 'superadmin' && 
+        u.role !== 'director' && 
+        u.role !== 'deputy' && 
+        u.role !== 'duty_officer'
+      );
 
     const entriesPath = getEntriesCollection().split('/');
     const entriesRef = collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]);

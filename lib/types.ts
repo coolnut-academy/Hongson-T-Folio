@@ -48,13 +48,16 @@ export interface Approval {
   directorComment?: string;
 }
 
+// User roles for RBAC
+export type UserRole = 'superadmin' | 'director' | 'deputy' | 'duty_officer' | 'user';
+
 // User type
 export interface UserData {
   id: string;
   email: string;
   name: string;
   position: string;
-  role: 'superadmin' | 'admin' | 'director' | 'deputy' | 'user';
+  role: UserRole;
   department: string;
 }
 

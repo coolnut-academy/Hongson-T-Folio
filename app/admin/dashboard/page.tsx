@@ -208,7 +208,12 @@ export default function AdminDashboardPage() {
     const unsubscribeUsers = onSnapshot(usersRef, (snapshot) => {
       const usersData = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() } as User))
-        .filter((u) => u.role !== 'admin' && u.role !== 'director' && u.role !== 'deputy');
+        .filter((u) => 
+          u.role !== 'superadmin' && 
+          u.role !== 'director' && 
+          u.role !== 'deputy' && 
+          u.role !== 'duty_officer'
+        );
       setUsers(usersData);
     });
 

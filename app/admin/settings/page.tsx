@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getUsersCollection } from '@/lib/constants';
-import { Settings, Power, Globe, Lock, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Settings, Power, Globe, Lock, Loader2, CheckCircle2, XCircle, Download, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminSettingsPage() {
@@ -206,6 +206,47 @@ export default function AdminSettingsPage() {
             </span>
           </motion.div>
         )}
+      </motion.div>
+
+      {/* Backup & Restore Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="bg-white rounded-xl shadow-md border border-gray-200 p-4 sm:p-6"
+      >
+        <div className="flex items-center gap-2 sm:gap-3 mb-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Database className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800">Backup & Restore</h2>
+            <p className="text-xs sm:text-sm text-gray-600">สำรองและกู้คืนข้อมูลทั้งหมด</p>
+          </div>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <div className="text-base sm:text-lg flex-shrink-0 mt-0.5">💡</div>
+            <div className="text-xs sm:text-sm text-blue-800">
+              <p className="font-semibold mb-1">ฟีเจอร์:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Backup ข้อมูลทั้งหมดเป็นไฟล์ JSON</li>
+                <li>Restore ข้อมูลจากไฟล์ backup</li>
+                <li>เหมาะสำหรับการย้าย cloud</li>
+                <li>เก็บ users เดิมไว้เมื่อ restore</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => router.push('/admin/backup')}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center justify-center gap-2"
+        >
+          <Download className="w-5 h-5" />
+          เปิดเครื่องมือ Backup & Restore
+        </button>
       </motion.div>
 
       {/* Info Card */}

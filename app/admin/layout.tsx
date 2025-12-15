@@ -16,8 +16,13 @@ import {
   Leaf,
   TrendingUp,
   Filter,
-  Settings
+  Settings,
+  Calendar,
+  Home
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { getUsersCollection } from '@/lib/constants';
 
 export default function AdminLayout({
   children,
@@ -28,13 +33,19 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [rolePermissions, setRolePermissions] = useState<string[]>([]);
 
   // --- Auth Protection ---
   useEffect(() => {
     if (!loading) {
       if (!userData) {
         router.push('/login');
-      } else if (userData.role !== 'superadmin' && userData.role !== 'admin' && userData.role !== 'director' && userData.role !== 'deputy') {
+      } else if (
+        userData.role !== 'superadmin' && 
+        userData.role !== 'director' && 
+        userData.role !== 'deputy' && 
+        userData.role !== 'duty_officer'
+      ) {
         router.push('/dashboard');
       }
     }
@@ -50,26 +61,67 @@ export default function AdminLayout({
 
   if (!userData) return null;
 
-  // Navigation items - "จัดการผู้ใช้" แสดงเฉพาะ Super Admin
+  // Load role permissions from Firestore
+  useEffect(() => {
+    const loadPermissions = async () => {
+      try {
+        const usersPath = getUsersCollection().split('/');
+        const permissionsDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], 'system', 'permissions');
+        const permissionsDoc = await getDoc(permissionsDocRef);
+
+        if (permissionsDoc.exists()) {
+          const data = permissionsDoc.data();
+          setRolePermissions(data[userData.role] || []);
+        } else {
+          // Use default permissions if not set
+          const defaultPerms: { [key: string]: string[] } = {
+            director: ['/admin/dashboard', '/admin/dashboard/kpi-overview', '/admin/filter', '/admin/compliance', '/admin/users'],
+            deputy: ['/admin/dashboard', '/admin/dashboard/kpi-overview', '/admin/filter', '/admin/compliance', '/admin/users'],
+            duty_officer: ['/admin/duty'],
+            user: ['/dashboard'],
+          };
+          setRolePermissions(defaultPerms[userData.role] || []);
+        }
+      } catch (error) {
+        console.error('Error loading permissions:', error);
+      }
+    };
+
+    if (userData && userData.role !== 'superadmin') {
+      loadPermissions();
+    }
+  }, [userData]);
+
+  // Navigation items with RBAC
   const allNavItems = [
-    { label: 'ภาพรวม', href: '/admin/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'director', 'deputy'] },
-    { label: 'KPI Overview', href: '/admin/dashboard/kpi-overview', icon: TrendingUp, roles: ['superadmin', 'admin', 'director', 'deputy'] },
-    { label: 'คัดกรองข้อมูล', href: '/admin/filter', icon: Filter, roles: ['superadmin', 'admin', 'director', 'deputy'] },
-    { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users, roles: ['superadmin'] }, // เฉพาะ Super Admin
-    { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck, roles: ['superadmin', 'admin', 'director', 'deputy'] },
-    { label: 'การตั้งค่าระบบ', href: '/admin/settings', icon: Settings, roles: ['superadmin'] }, // เฉพาะ Super Admin
+    { label: 'หน้าหลัก', href: '/admin', icon: Home },
+    { label: 'ภาพรวม', href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'KPI Overview', href: '/admin/dashboard/kpi-overview', icon: TrendingUp },
+    { label: 'คัดกรองข้อมูล', href: '/admin/filter', icon: Filter },
+    { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck },
+    { label: 'เวรประจำวัน', href: '/admin/duty', icon: Calendar },
+    { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users },
+    { label: 'การตั้งค่าระบบ', href: '/admin/settings', icon: Settings },
   ];
 
-  // Filter nav items ตาม role ของผู้ใช้
-  // ตรวจสอบทั้ง role และ username เพื่อรองรับกรณีที่ username เป็น 'superadmin' หรือ 'admingod'
+  // Filter nav items based on role permissions
   const navItems = allNavItems.filter(item => {
     const userRole = userData.role;
-    const username = userData.username;
-    // ถ้า username เป็น 'superadmin' หรือ 'admingod' หรือ role เป็น 'superadmin' ให้แสดง "จัดการผู้ใช้" และ "การตั้งค่าระบบ"
-    if (item.href === '/admin/users' || item.href === '/admin/settings') {
-      return userRole === 'superadmin' || username === 'superadmin' || username === 'admingod';
+    const username = userData.username || '';
+    const isSuperadmin = userRole === 'superadmin' || username === 'superadmin' || username === 'admingod';
+    
+    // Superadmin sees everything
+    if (isSuperadmin) {
+      return true;
     }
-    return item.roles.includes(userRole);
+
+    // Admin home is visible to all admin roles
+    if (item.href === '/admin') {
+      return true;
+    }
+    
+    // Check against role permissions from Firestore
+    return rolePermissions.includes(item.href);
   });
 
   const handleSignOut = async () => {
@@ -131,7 +183,11 @@ export default function AdminLayout({
                 <div className="text-right">
                   <p className="text-xs font-bold text-stone-700 leading-tight">{userData.name}</p>
                   <p className={`text-[10px] capitalize ${userData.role === 'superadmin' ? 'text-amber-500 font-bold' : 'text-stone-400'}`}>
-                    {userData.role === 'superadmin' ? '⚡ Super Admin' : userData.role}
+                    {userData.role === 'superadmin' ? '⚡ Super Admin' : 
+                     userData.role === 'director' ? 'ผอ.' :
+                     userData.role === 'deputy' ? 'รอง ผอ.' :
+                     userData.role === 'duty_officer' ? 'เวรประจำวัน' :
+                     'ครู'}
                   </p>
                 </div>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-sm ${
@@ -199,7 +255,11 @@ export default function AdminLayout({
                       <div className="text-sm">
                         <p className="font-bold text-stone-700">{userData.name}</p>
                         <p className={`text-xs ${userData.role === 'superadmin' ? 'text-amber-500 font-bold' : 'text-stone-500'}`}>
-                          {userData.role === 'superadmin' ? '⚡ Super Admin' : userData.role}
+                          {userData.role === 'superadmin' ? '⚡ Super Admin' : 
+                           userData.role === 'director' ? 'ผอ.' :
+                           userData.role === 'deputy' ? 'รอง ผอ.' :
+                           userData.role === 'duty_officer' ? 'เวรประจำวัน' :
+                           'ครู'}
                         </p>
                       </div>
                     </div>

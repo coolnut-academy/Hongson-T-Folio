@@ -3,21 +3,21 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { 
   User as FirebaseUser,
-  signInAnonymously,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
   signOut as firebaseSignOut
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
-import { getUsersCollection, APP_ID } from '@/lib/constants';
+import { getUsersCollection } from '@/lib/constants';
 
-export type UserRole = 'superadmin' | 'admin' | 'director' | 'deputy' | 'user';
+export type UserRole = 'superadmin' | 'director' | 'deputy' | 'duty_officer' | 'user';
 
 export interface UserData {
   id: string; // username (doc ID)
-  uid?: string; // Firebase Auth UID (if using Firebase Auth)
+  uid?: string; // Firebase Auth UID
   username: string;
-  password?: string; // stored for reference, not used for auth
   role: UserRole;
   name: string;
   position: string;
@@ -40,49 +40,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Listen to Firebase Auth state changes
   useEffect(() => {
-    // Listen to users collection for username/password auth
-    const usersPath = getUsersCollection().split('/');
-    const usersRef = collection(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4]);
-    
-    const unsubscribe = onSnapshot(usersRef, async (snapshot) => {
-      try {
-        // Auto-create admin users if collection is empty
-        if (snapshot.empty) {
-          const superadminDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'superadmin');
-          const adminDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'admin');
-          const deputyDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'deputy');
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      
+        if (firebaseUser) {
+        // User is signed in, fetch their data from Firestore
+        try {
+          // Extract username from email (remove @hongson.ac.th)
+          const email = firebaseUser.email || '';
+          const username = email.replace('@hongson.ac.th', '');
           
-          // Create Super Admin (Admin God)
-          await setDoc(superadminDocRef, {
-            username: 'superadmin',
-            password: 'superadmin2025',
-            name: 'Super Admin (ผู้ดูแลระบบสูงสุด)',
-            role: 'superadmin',
-            position: 'System Administrator',
-            department: 'IT & System Management',
-          });
+          console.log(`📂 Fetching Firestore data for: ${username}`);
           
-          await setDoc(adminDocRef, {
-            username: 'admin',
-            password: 'password',
-            name: 'ท่านผู้อำนวยการ (Director)',
-            role: 'admin',
-            position: 'Director',
-            department: 'บริหาร',
-          });
+          const usersPath = getUsersCollection().split('/');
+          const userDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], username);
+          const userDocSnap = await getDoc(userDocRef);
           
-          await setDoc(deputyDocRef, {
-            username: 'deputy',
-            password: 'password',
-            name: 'ท่านรองผู้อำนวยการ (Deputy)',
-            role: 'admin',
-            position: 'Deputy Director',
-            department: 'บริหาร',
-          });
+          if (userDocSnap.exists()) {
+            const data = userDocSnap.data();
+            console.log(`✅ Firestore document found for: ${username}, role: ${data.role}`);
+            setUserData({
+              id: username,
+              uid: firebaseUser.uid,
+              username,
+              role: (data.role as UserRole) || 'user',
+              name: data.name || '',
+              position: data.position || '',
+              department: data.department || '',
+            });
+          } else {
+            // User exists in Auth but not in Firestore
+            console.error(`❌ User "${username}" exists in Firebase Auth but NOT in Firestore!`);
+            console.error('   This happens when you create users directly in Firebase Console.');
+            console.error('   Please create users through /seed-admin page or Admin Panel instead.');
+            
+            // Force sign out
+            await firebaseSignOut(auth);
+            setUserData(null);
+            
+            // Show alert to user
+            if (typeof window !== 'undefined') {
+              alert(
+                `❌ บัญชี "${username}" ไม่สมบูรณ์!\n\n` +
+                `พบบัญชีใน Firebase Authentication แต่ไม่พบข้อมูลในระบบ\n\n` +
+                `กรุณาติดต่อผู้ดูแลระบบเพื่อสร้างบัญชีใหม่ผ่าน Admin Panel`
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          setUserData(null);
+          await firebaseSignOut(auth);
         }
-      } catch (error) {
-        console.error('Error creating admin users:', error);
+      } else {
+        // User is signed out
+        setUserData(null);
       }
       
       setLoading(false);
@@ -91,86 +105,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // Separate useEffect for admingod check - runs only once on mount
-  useEffect(() => {
-    let isMounted = true;
-    
-    const checkAndUpdateAdmingod = async () => {
-      try {
-        const usersPath = getUsersCollection().split('/');
-        const admingodDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], 'admingod');
-        const admingodDocSnap = await getDoc(admingodDocRef);
-        
-        if (!isMounted) return;
-        
-        if (admingodDocSnap.exists()) {
-          const admingodData = admingodDocSnap.data();
-          // Update role to superadmin if it's not already
-          if (admingodData.role !== 'superadmin') {
-            await setDoc(admingodDocRef, {
-              ...admingodData,
-              role: 'superadmin',
-            }, { merge: true });
-          }
-        } else {
-          // Create admingod if it doesn't exist
-          await setDoc(admingodDocRef, {
-            username: 'admingod',
-            password: 'god1234',
-            name: 'Admin God (ผู้ดูแลระบบสูงสุด)',
-            role: 'superadmin',
-            position: 'System Administrator',
-            department: 'IT & System Management',
-          });
-        }
-      } catch (error) {
-        console.error('Error checking/updating admingod:', error);
-      }
-    };
+  // No longer auto-creating users with plain text passwords
+  // Users must be created through the bootstrap page (/seed-admin) or admin panel
 
-    // Run once after a short delay to avoid blocking initial load
-    const timer = setTimeout(() => {
-      checkAndUpdateAdmingod();
-    }, 1000);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, []);
+  // No longer auto-creating admingod with plain text password
+  // Use the bootstrap page (/seed-admin) to create the first super admin
 
   const signIn = async (username: string, password: string) => {
     try {
-      // Fetch user from Firestore by username
-      const usersPath = getUsersCollection().split('/');
-      const userDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], username);
-      const userDocSnap = await getDoc(userDocRef);
+      // Construct email from username
+      const email = `${username}@hongson.ac.th`;
       
-      if (!userDocSnap.exists()) {
+      console.log(`🔐 Attempting login for: ${username} (${email})`);
+      
+      // Sign in with Firebase Auth ONLY (no legacy fallback)
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      console.log(`✅ Firebase Auth successful for: ${username}`);
+      
+      // Auth state listener will automatically handle setting user data
+      // If user doesn't have Firestore document, onAuthStateChanged will handle it
+    } catch (error: unknown) {
+      const firebaseError = error as { code?: string; message?: string };
+      const errorCode = firebaseError.code || 'unknown';
+      console.error(`❌ Login failed for ${username}:`, errorCode);
+      
+      // Handle specific Firebase Auth error codes
+      if (errorCode === 'auth/invalid-email') {
+        throw new Error('รูปแบบอีเมลไม่ถูกต้อง');
+      } else if (errorCode === 'auth/user-disabled') {
+        throw new Error('บัญชีนี้ถูกปิดการใช้งาน');
+      } else if (errorCode === 'auth/user-not-found' || 
+                 errorCode === 'auth/wrong-password' || 
+                 errorCode === 'auth/invalid-credential') {
         throw new Error('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
+      } else if (errorCode === 'auth/network-request-failed') {
+        throw new Error('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง');
+      } else if (errorCode === 'auth/too-many-requests') {
+        throw new Error('คุณพยายามเข้าสู่ระบบหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่');
       }
       
-      const userData = userDocSnap.data();
-      
-      // Check password (plain text comparison for prototype)
-      if (userData.password !== password) {
-        throw new Error('ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
-      }
-      
-      // Set user data (no Firebase Auth needed for this prototype)
-      setUserData({
-        id: username,
-        username: userData.username || username,
-        password: userData.password,
-        role: (userData.role as UserRole) || 'user',
-        name: userData.name || '',
-        position: userData.position || '',
-        department: userData.department || '',
-      });
-      
-      // Optionally sign in anonymously to Firebase Auth for other features
-      // await signInAnonymously(auth);
-    } catch (error: any) {
+      // Re-throw the error
       throw error;
     }
   };
@@ -178,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-    } catch (error) {
+    } catch {
       // Ignore auth errors if not using Firebase Auth
     }
     setUserData(null);

@@ -81,10 +81,10 @@ function LoginPageContent() {
   // ✅ Logic เดิม: Redirect ถ้า Login อยู่แล้ว
   useEffect(() => {
     if (userData) {
-      if (userData.role === 'superadmin') {
-        router.push('/admin/dashboard');
-      } else if (userData.role === 'admin' || userData.role === 'director' || userData.role === 'deputy') {
-        router.push('/admin/dashboard');
+      if (userData.role === 'superadmin' || userData.role === 'director' || userData.role === 'deputy') {
+        router.push('/admin'); // Redirect to admin home page
+      } else if (userData.role === 'duty_officer') {
+        router.push('/admin/duty');
       } else {
         router.push('/dashboard');
       }

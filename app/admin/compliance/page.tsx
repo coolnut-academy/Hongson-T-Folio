@@ -72,11 +72,15 @@ export default function CompliancePage() {
       const usersData = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }))
         .filter((u: any) => {
-          // Filter out admin and superadmin roles, and specific superadmin usernames
+          // Filter out superadmin roles and specific superadmin usernames
           const isSuperAdmin = u.role === 'superadmin' || 
                               u.username === 'superadmin' || 
                               u.username === 'admingod';
-          return u.role !== 'admin' && !isSuperAdmin;
+          // Also filter out director, deputy, and duty_officer from compliance list
+          return !isSuperAdmin && 
+                 u.role !== 'director' && 
+                 u.role !== 'deputy' && 
+                 u.role !== 'duty_officer';
         }) as User[];
       setUsers(usersData);
     });
