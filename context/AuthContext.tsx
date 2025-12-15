@@ -153,11 +153,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-    } catch {
-      // Ignore auth errors if not using Firebase Auth
+      console.log('✅ Signed out from Firebase Auth');
+    } catch (error) {
+      console.error('⚠️ Error signing out from Firebase Auth:', error);
+      // Continue anyway to clear local state
     }
+    
+    // Clear user data
     setUserData(null);
-    router.push('/login');
+    setUser(null);
+    
+    // Use window.location for more reliable redirect (clears all state)
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    } else {
+      router.push('/login');
+    }
   };
 
   return (
