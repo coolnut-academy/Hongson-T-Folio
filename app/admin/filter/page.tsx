@@ -7,7 +7,7 @@ import { TimeRangeSelector } from '@/components/filter/TimeRangeSelector';
 import { FilterButton } from '@/components/filter/FilterButton';
 import { ResultsList } from '@/components/filter/ResultsList';
 import { getWorkRecordsFiltered, type WorkRecord, type FilterParams } from '@/lib/filterData';
-import { Filter, Loader2, FileDown } from 'lucide-react';
+import { Filter, Loader2, FileDown, RefreshCw } from 'lucide-react';
 import AdminWorkFilterPdfDocument from '@/components/pdf/AdminWorkFilterPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
 import { prepareWorkRecordsForPdf } from '@/lib/pdfUtils';
@@ -25,6 +25,7 @@ export default function AdminDataFilteringPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(true); // ⚡ Default to true for fresh data
   
   // Store current filter state for PDF metadata
   const [currentFilters, setCurrentFilters] = useState<FilterParams>({});
@@ -57,12 +58,18 @@ export default function AdminDataFilteringPage() {
     };
 
     try {
-      const data = await getWorkRecordsFiltered(filters);
+      // ⚡ Pass forceRefresh parameter to bypass Firestore cache
+      const data = await getWorkRecordsFiltered(filters, forceRefresh);
       setResults(data);
       setHasSearched(true);
       setCurrentFilters(filters); // Store filters for PDF metadata
+      
+      if (forceRefresh) {
+        console.log('✅ ดึงข้อมูลล่าสุดจาก Server สำเร็จ (bypass cache)');
+      }
     } catch (error) {
       console.error('Error fetching work records:', error);
+      alert('เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง');
     } finally {
       setLoading(false);
     }
@@ -248,6 +255,28 @@ export default function AdminDataFilteringPage() {
 
             {/* Time Range */}
             <TimeRangeSelector onTimeRangeChange={handleTimeRangeChange} />
+
+            {/* Force Refresh Option */}
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center h-6">
+                <input
+                  type="checkbox"
+                  id="forceRefresh"
+                  checked={forceRefresh}
+                  onChange={(e) => setForceRefresh(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                />
+              </div>
+              <div className="flex-1">
+                <label htmlFor="forceRefresh" className="flex items-center gap-2 text-sm font-medium text-blue-900 cursor-pointer">
+                  <RefreshCw className="w-4 h-4" />
+                  ดึงข้อมูลล่าสุดจาก Server
+                </label>
+                <p className="text-xs text-blue-700 mt-1">
+                  แนะนำให้เปิดเสมอ เพื่อให้แน่ใจว่าได้ข้อมูลล่าสุด (ไม่ใช้ cache)
+                </p>
+              </div>
+            </div>
 
             {/* Filter Button */}
             <div className="pt-3 sm:pt-4 border-t border-stone-100">

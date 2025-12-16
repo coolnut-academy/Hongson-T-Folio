@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getUsersCollection } from '@/lib/constants';
+import { getCache, setCache, CACHE_KEYS } from '@/lib/cache-utils';
 
 function LoginPageContent() {
   const [username, setUsername] = useState('');
@@ -21,12 +22,12 @@ function LoginPageContent() {
   const { signIn, userData } = useAuth();
   const router = useRouter();
 
-  // Check site status on mount
+  // ⚡ OPTIMIZED: Check site status with cache (instant load)
   useEffect(() => {
     // Check if user has admin maintenance access from localStorage first
     if (typeof window !== 'undefined') {
-      const adminAccess = localStorage.getItem('adminMaintenanceAccess');
-      const accessTime = localStorage.getItem('adminMaintenanceAccessTime');
+      const adminAccess = localStorage.getItem(CACHE_KEYS.ADMIN_ACCESS);
+      const accessTime = localStorage.getItem(CACHE_KEYS.ADMIN_ACCESS_TIME);
       
       // Check if access is valid (within 1 hour)
       if (adminAccess === 'true' && accessTime) {
@@ -35,35 +36,52 @@ function LoginPageContent() {
         
         if (timeDiff < oneHour) {
           // Valid admin access - clear it and allow login
-          localStorage.removeItem('adminMaintenanceAccess');
-          localStorage.removeItem('adminMaintenanceAccessTime');
+          localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS);
+          localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS_TIME);
           setCheckingSiteStatus(false);
           return; // Exit early - don't check site status
         } else {
           // Expired - clear it
-          localStorage.removeItem('adminMaintenanceAccess');
-          localStorage.removeItem('adminMaintenanceAccessTime');
+          localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS);
+          localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS_TIME);
         }
       }
     }
 
-    // Use onSnapshot for real-time site status (more efficient than getDoc on every load)
+    // ⚡ Check cache first (instant load - no network delay)
+    const cachedStatus = getCache<boolean>(CACHE_KEYS.SITE_STATUS);
+    
+    if (cachedStatus !== null) {
+      // Cache hit! Use cached value immediately
+      if (cachedStatus === false) {
+        router.push('/maintenance');
+        return;
+      } else {
+        // Site enabled - allow access immediately
+        setCheckingSiteStatus(false);
+      }
+    } else {
+      // No cache - show loading (first time only)
+      setCheckingSiteStatus(true);
+    }
+
+    // 🔄 Background sync: Update cache with real-time data
     const usersPath = getUsersCollection().split('/');
     const settingsDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], 'system', 'settings');
     
     const unsubscribe = onSnapshot(settingsDocRef, (settingsDoc) => {
       try {
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
-          // If site is disabled, redirect to maintenance page
-          if (data.siteEnabled === false) {
-            router.push('/maintenance');
-            return;
-          }
-        }
+        const siteEnabled = settingsDoc.exists() ? (settingsDoc.data().siteEnabled !== false) : true;
         
-        // Site is enabled or no settings found - allow access
-        setCheckingSiteStatus(false);
+        // Update cache (5 minutes TTL)
+        setCache(CACHE_KEYS.SITE_STATUS, siteEnabled, 5 * 60 * 1000);
+        
+        // Update UI if needed
+        if (siteEnabled === false) {
+          router.push('/maintenance');
+        } else {
+          setCheckingSiteStatus(false);
+        }
       } catch (error) {
         console.error('Error checking site status:', error);
         // On error, allow access (fail open)
@@ -71,7 +89,6 @@ function LoginPageContent() {
       }
     }, (error) => {
       console.error('Error in site status listener:', error);
-      // On error, allow access (fail open)
       setCheckingSiteStatus(false);
     });
 
@@ -122,25 +139,25 @@ function LoginPageContent() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 relative overflow-hidden font-sans">
       
-      {/* 🎨 Background Animation (ตกแต่งพื้นหลัง) */}
+      {/* 🎨 Background Animation - OPTIMIZED (reduced complexity) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
           animate={{ 
-            y: [0, -20, 0],
-            rotate: [0, 5, 0],
-            scale: [1, 1.05, 1]
+            y: [0, -15, 0],
+            scale: [1, 1.03, 1]
           }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[10%] -right-[10%] w-[600px] h-[600px] bg-green-200/30 rounded-full blur-[100px]" 
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-[10%] -right-[10%] w-[600px] h-[600px] bg-green-200/30 rounded-full blur-[60px]"
+          style={{ willChange: 'transform' }}
         />
         <motion.div 
           animate={{ 
-            y: [0, 30, 0],
-            rotate: [0, -10, 0],
-            scale: [1, 1.1, 1]
+            y: [0, 20, 0],
+            scale: [1, 1.05, 1]
           }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute top-[20%] -left-[10%] w-[500px] h-[500px] bg-emerald-200/30 rounded-full blur-[100px]" 
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute top-[20%] -left-[10%] w-[500px] h-[500px] bg-emerald-200/30 rounded-full blur-[60px]"
+          style={{ willChange: 'transform' }}
         />
       </div>
 
@@ -165,11 +182,12 @@ function LoginPageContent() {
               className="w-20 h-20 mx-auto rounded-full flex items-center justify-center overflow-hidden mb-4"
             >
               <Image 
-                src="https://img2.pic.in.th/pic/logo-hs-metaverse.png" 
+                src="/logo-hongson-metaverse.png" 
                 alt="Hongson Logo" 
                 width={80}
                 height={80}
                 className="object-contain"
+                priority
               />
             </motion.div>
             
@@ -274,35 +292,25 @@ function LoginPageContent() {
             </motion.button>
           </form>
 
-          {/* Developer Credit */}
+          {/* Developer Credit - OPTIMIZED (simplified animations) */}
 <motion.div 
   initial={{ opacity: 0, y: 8 }}
   animate={{ opacity: 1, y: 0 }}
-  transition={{ delay: 0.5, duration: 0.5, ease: "easeOut" }}
+  transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
   className="mt-8 flex items-center justify-center"
 >
-  <motion.div
-    whileHover={{ 
-      y: -2,
-      scale: 1.03,
-      transition: { type: "spring", stiffness: 220, damping: 16 }
-    }}
-    className="relative inline-flex items-center gap-3 rounded-full border border-emerald-200/70 bg-gradient-to-r from-slate-50/90 via-white/95 to-emerald-50/90 px-4 sm:px-5 py-2 shadow-sm hover:shadow-md backdrop-blur-sm transition-shadow duration-300 group cursor-default"
+  <div
+    className="relative inline-flex items-center gap-3 rounded-full border border-emerald-200/70 bg-gradient-to-r from-slate-50/90 via-white/95 to-emerald-50/90 px-4 sm:px-5 py-2 shadow-sm hover:shadow-md backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] group cursor-default"
   >
-    {/* Glow ด้านหลัง (ใช้แค่ตอน hover / ไม่ animate loop) */}
+    {/* Glow ด้านหลัง */}
     <span
-      aria-hidden
+      aria-hidden="true"
       className="pointer-events-none absolute inset-0 -z-10 rounded-full bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.20),_transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
     />
 
     {/* Icon ฝั่งซ้าย */}
-    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50/80 shadow-inner">
-      <motion.div
-        whileHover={{ rotate: -8, scale: 1.05 }}
-        transition={{ type: "spring", stiffness: 300, damping: 18 }}
-      >
-        <Code2 className="w-4 h-4 text-emerald-600" strokeWidth={2.4} />
-      </motion.div>
+    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50/80 shadow-inner group-hover:rotate-[-8deg] transition-transform duration-300">
+      <Code2 className="w-4 h-4 text-emerald-600" strokeWidth={2.4} />
     </div>
 
     {/* ตัวอักษร */}
@@ -315,15 +323,15 @@ function LoginPageContent() {
       </span>
     </div>
 
-    {/* Sparkles ฝั่งขวา – ใช้ animate-pulse (CSS) เบามาก */}
+    {/* Sparkles ฝั่งขวา */}
     <div className="relative flex h-6 w-6 items-center justify-center">
       <span
-        aria-hidden
+        aria-hidden="true"
         className="absolute inline-flex h-full w-full rounded-full border border-emerald-300/60 opacity-0 group-hover:opacity-80 group-hover:scale-110 transition-all duration-300"
       />
-      <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+      <Sparkles className="w-3.5 h-3.5 text-emerald-400 group-hover:animate-pulse" />
     </div>
-  </motion.div>
+  </div>
 </motion.div>
         </div>
       </motion.div>

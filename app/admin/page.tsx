@@ -13,7 +13,9 @@ import {
   Calendar,
   Database,
   ShieldCheck,
-  Layers
+  Layers,
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -121,12 +123,30 @@ export default function AdminHomePage() {
       roles: ['superadmin'],
     },
     {
+      title: 'Custom Claims',
+      description: 'จัดการ Firebase Auth Custom Claims',
+      href: '/admin/custom-claims',
+      icon: ShieldCheck,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50 hover:bg-purple-100',
+      roles: ['superadmin'],
+    },
+    {
       title: 'Backup & Restore',
       description: 'สำรองและกู้คืนข้อมูล',
       href: '/admin/backup',
       icon: Database,
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-50 hover:bg-cyan-100',
+      roles: ['superadmin'],
+    },
+    {
+      title: 'Sync Users',
+      description: 'ซิงค์ผู้ใช้ระหว่าง Auth และ Firestore',
+      href: '/admin/sync-users',
+      icon: RefreshCw,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50 hover:bg-blue-100',
       roles: ['superadmin'],
     },
     {
@@ -139,13 +159,24 @@ export default function AdminHomePage() {
       roles: ['superadmin'],
     },
     {
+      title: 'ลบข้อมูลทั้งหมด',
+      description: '⚠️ ลบผลงานและรูปภาพทั้งหมด (Danger Zone)',
+      href: '/admin/clear-entries',
+      icon: Trash2,
+      color: 'text-red-600',
+      bgColor: 'bg-red-50 hover:bg-red-100',
+      roles: ['superadmin'],
+    },
+    {
       title: 'User Dashboard',
       description: 'จัดการผลงานส่วนตัว',
       href: '/dashboard',
       icon: Layers,
       color: 'text-green-600',
       bgColor: 'bg-green-50 hover:bg-green-100',
-      roles: ['superadmin', 'director', 'deputy', 'duty_officer', 'user'],
+      roles: ['superadmin', 'duty_officer'],
+      // Note: ฝ่ายบริหาร (director, deputy) ใช้ Admin Dashboard เท่านั้น
+      // ไม่แสดง User Dashboard ให้ผอ./รองผอ. เพื่อลดความสับสน
     },
   ];
 

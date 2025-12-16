@@ -11,6 +11,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { getUsersCollection } from '@/lib/constants';
+import { autoSyncUserToFirestore } from '@/app/actions/sync-users';
 
 export type UserRole = 'superadmin' | 'director' | 'deputy' | 'duty_officer' | 'user';
 
@@ -40,54 +41,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Listen to Firebase Auth state changes
+  // ⚡ OPTIMIZED: Listen to Firebase Auth state changes with better performance
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       
-        if (firebaseUser) {
+      if (firebaseUser) {
         // User is signed in, fetch their data from Firestore
         try {
           // Extract username from email (remove @hongson.ac.th)
+          // ⚠️ CRITICAL: Normalize to lowercase to match Firestore doc ID
           const email = firebaseUser.email || '';
-          const username = email.replace('@hongson.ac.th', '');
+          const username = email.replace('@hongson.ac.th', '').toLowerCase().trim();
           
           console.log(`📂 Fetching Firestore data for: ${username}`);
           
           const usersPath = getUsersCollection().split('/');
           const userDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4], username);
+          
+          // ⚡ Check Custom Claims first (faster than Firestore query)
+          const idTokenResult = await firebaseUser.getIdTokenResult();
+          const customRole = idTokenResult.claims.role as UserRole | undefined;
+          
+          // Fetch Firestore document
           const userDocSnap = await getDoc(userDocRef);
           
           if (userDocSnap.exists()) {
             const data = userDocSnap.data();
-            console.log(`✅ Firestore document found for: ${username}, role: ${data.role}`);
+            const firestoreRole = (data.role as UserRole) || 'user';
+            
+            // Use Custom Claims role if available and valid, otherwise use Firestore role
+            const role = customRole && ['superadmin', 'director', 'deputy', 'duty_officer', 'user'].includes(customRole) 
+              ? customRole 
+              : firestoreRole;
+            
+            console.log(`✅ Firestore document found for: ${username}, role: ${role} ${customRole !== firestoreRole ? '(from custom claims)' : ''}`);
+            
             setUserData({
               id: username,
               uid: firebaseUser.uid,
               username,
-              role: (data.role as UserRole) || 'user',
+              role,
               name: data.name || '',
               position: data.position || '',
               department: data.department || '',
             });
           } else {
-            // User exists in Auth but not in Firestore
-            console.error(`❌ User "${username}" exists in Firebase Auth but NOT in Firestore!`);
-            console.error('   This happens when you create users directly in Firebase Console.');
-            console.error('   Please create users through /seed-admin page or Admin Panel instead.');
+            // User exists in Auth but not in Firestore - AUTO-SYNC!
+            console.warn(`⚠️ User "${username}" exists in Firebase Auth but NOT in Firestore!`);
+            console.log(`🔄 Attempting auto-sync in background...`);
             
-            // Force sign out
-            await firebaseSignOut(auth);
-            setUserData(null);
-            
-            // Show alert to user
-            if (typeof window !== 'undefined') {
-              alert(
-                `❌ บัญชี "${username}" ไม่สมบูรณ์!\n\n` +
-                `พบบัญชีใน Firebase Authentication แต่ไม่พบข้อมูลในระบบ\n\n` +
-                `กรุณาติดต่อผู้ดูแลระบบเพื่อสร้างบัญชีใหม่ผ่าน Admin Panel`
-              );
-            }
+            // ⚡ Run auto-sync in background (non-blocking)
+            autoSyncUserToFirestore({
+              username,
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName || undefined,
+              email: firebaseUser.email || undefined,
+            }).then(async (syncResult) => {
+              if (syncResult.success) {
+                console.log(`✅ Auto-sync successful!`);
+                
+                // Fetch the newly created document
+                const newUserDocSnap = await getDoc(userDocRef);
+                if (newUserDocSnap.exists()) {
+                  const data = newUserDocSnap.data();
+                  setUserData({
+                    id: username,
+                    uid: firebaseUser.uid,
+                    username,
+                    role: (data.role as UserRole) || 'user',
+                    name: data.name || '',
+                    position: data.position || '',
+                    department: data.department || '',
+                  });
+                  setLoading(false);
+                } else {
+                  throw new Error('Failed to fetch newly created document');
+                }
+              } else {
+                throw new Error(syncResult.error || 'Auto-sync failed');
+              }
+            }).catch((syncError) => {
+              console.error('❌ Auto-sync failed:', syncError);
+              
+              // Fallback: Sign out and show error
+              firebaseSignOut(auth);
+              setUserData(null);
+              setLoading(false);
+              
+              if (typeof window !== 'undefined') {
+                alert(
+                  `❌ ไม่สามารถสร้างข้อมูลผู้ใช้อัตโนมัติได้!\n\n` +
+                  `กรุณาติดต่อผู้ดูแลระบบเพื่อสร้างบัญชีผ่าน Admin Panel`
+                );
+              }
+            });
           }
         } catch (error) {
           console.error('Error fetching user data:', error);

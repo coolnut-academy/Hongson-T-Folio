@@ -88,7 +88,10 @@ function getCollectionPath() {
  */
 export async function createUser(params: CreateUserParams): Promise<{ success: boolean; error?: string }> {
   try {
-    const { username, password, name, position, department, role, currentUserRole, currentUsername } = params;
+    const { password, name, position, department, role, currentUserRole, currentUsername } = params;
+    
+    // ⚠️ CRITICAL: Normalize username to lowercase to prevent duplicates
+    const username = params.username.toLowerCase().trim();
     
     // Validate permissions
     if (!canAssignRole(currentUserRole, currentUsername, role)) {
@@ -119,8 +122,10 @@ export async function createUser(params: CreateUserParams): Promise<{ success: b
     // Create user in Firebase Auth with @hongson.ac.th email
     const email = `${username}@hongson.ac.th`;
     let authUid: string | undefined;
+    let authUserCreated = false;
     
     try {
+      console.log(`🔵 Creating Firebase Auth user: ${username}`);
       const userRecord = await adminAuth.createUser({
         email,
         password,
@@ -128,28 +133,69 @@ export async function createUser(params: CreateUserParams): Promise<{ success: b
         emailVerified: true, // Auto-verify since it's internal
       });
       authUid = userRecord.uid;
+      authUserCreated = true;
+      console.log(`✅ Firebase Auth user created: ${username} (UID: ${authUid})`);
+      
+      // Set Custom Claims immediately after Auth creation
+      console.log(`🔵 Setting Custom Claims for ${username}: role=${role}`);
+      await adminAuth.setCustomUserClaims(authUid, {
+        role,
+        username,
+        createdAt: new Date().toISOString(),
+      });
+      console.log(`✅ Custom Claims set for ${username}`);
     } catch (authError: any) {
-      // If auth creation fails, log but continue (for development without service account)
-      console.warn('Firebase Auth creation failed:', authError.message);
-      // In production, you might want to return an error here
-      // For now, continue with Firestore-only setup
+      console.error('❌ Firebase Auth creation failed:', authError.message);
+      return {
+        success: false,
+        error: `ไม่สามารถสร้าง user ใน Firebase Auth: ${authError.message}`
+      };
     }
     
     // Create user in Firestore
-    await userDocRef.set({
-      username,
-      password, // Store for backward compatibility (remove in production)
-      name,
-      position,
-      department,
-      role,
-      email,
-      authUid, // Link to Firebase Auth UID
-      createdAt: new Date().toISOString(),
-      createdBy: currentUsername,
-    });
-    
-    return { success: true };
+    try {
+      console.log(`🔵 Creating Firestore document: ${username}`);
+      await userDocRef.set({
+        username,
+        password, // Store for backward compatibility (remove in production)
+        name,
+        position,
+        department,
+        role,
+        email,
+        authUid, // Link to Firebase Auth UID
+        createdAt: new Date().toISOString(),
+        createdBy: currentUsername,
+      });
+      console.log(`✅ Firestore document created: ${username}`);
+      console.log(`🎉 User "${username}" created successfully in Auth + Firestore + Custom Claims!`);
+      return { success: true };
+    } catch (firestoreError: any) {
+      console.error('❌ Firestore creation failed:', firestoreError.message);
+      
+      // ROLLBACK: Delete the Auth user we just created
+      if (authUserCreated && authUid) {
+        try {
+          console.warn(`🔄 Rolling back: Deleting Auth user ${username} (${authUid})`);
+          await adminAuth.deleteUser(authUid);
+          console.log(`✅ Rollback successful: Auth user ${username} deleted`);
+        } catch (deleteError: any) {
+          console.error(`❌ Rollback failed: Could not delete Auth user ${username}:`, deleteError.message);
+          return {
+            success: false,
+            error: `⚠️ User ถูกสร้างใน Auth แต่ไม่สามารถสร้างใน Firestore!\n` +
+                   `และไม่สามารถ rollback ได้\n` +
+                   `กรุณาใช้หน้า Sync Users เพื่อแก้ไขปัญหา\n\n` +
+                   `Error: ${firestoreError.message}`
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        error: `ไม่สามารถสร้าง user ใน Firestore: ${firestoreError.message}`
+      };
+    }
   } catch (error: any) {
     console.error('Error creating user:', error);
     return { 
@@ -229,6 +275,17 @@ export async function updateUser(params: UpdateUserParams): Promise<{ success: b
         
         if (Object.keys(authUpdateData).length > 0) {
           await adminAuth.updateUser(existingData.authUid, authUpdateData);
+        }
+        
+        // Update Custom Claims if role changed
+        if (role && role !== existingData.role) {
+          console.log(`🔵 Updating Custom Claims for ${userId}: ${existingData.role} → ${role}`);
+          await adminAuth.setCustomUserClaims(existingData.authUid, {
+            role,
+            username: userId,
+            updatedAt: new Date().toISOString(),
+          });
+          console.log(`✅ Custom Claims updated for ${userId}`);
         }
       } catch (authError) {
         console.warn('Firebase Auth update failed:', authError);

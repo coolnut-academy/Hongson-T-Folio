@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
@@ -17,19 +18,24 @@ if (!getApps().length) {
       console.warn('⚠️ Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in Vercel Dashboard.');
       console.warn('⚠️ Some admin features will not work until credentials are set.');
       // Initialize with minimal config to prevent build failure
+      const projectId = serviceAccount.projectId || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project';
       initializeApp({
-        projectId: serviceAccount.projectId || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project',
+        projectId,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
       });
     } else {
       console.warn('⚠️ Firebase Admin SDK not fully initialized. Missing credentials. Auth operations will fail.');
+      const projectId = serviceAccount.projectId || 'demo-project-id';
       initializeApp({
-        projectId: serviceAccount.projectId || 'demo-project-id',
+        projectId,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
       });
     }
   } else {
     initializeApp({
       credential: cert(serviceAccount),
       projectId: serviceAccount.projectId, // Explicitly pass projectId here too
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${serviceAccount.projectId}.appspot.com`,
     });
     console.log('✅ Firebase Admin initialized successfully');
   }
@@ -37,3 +43,4 @@ if (!getApps().length) {
 
 export const adminAuth = getAuth();
 export const adminDb = getFirestore();
+export const adminStorage = getStorage();

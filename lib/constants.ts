@@ -19,6 +19,7 @@ export const LEVELS = [
 
 // Departments
 export const DEPARTMENTS = [
+  'ฝ่ายบริหาร',
   'กลุ่มสาระฯ ภาษาไทย',
   'กลุ่มสาระฯ คณิตศาสตร์',
   'กลุ่มสาระฯ วิทยาศาสตร์และเทคโนโลยี',

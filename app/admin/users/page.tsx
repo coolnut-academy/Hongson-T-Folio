@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Trash2, Plus, X, Edit2, Eye, Lock, Save } from 'lucide-react';
+import { Trash2, Plus, X, Edit2, Eye, Lock, Save, Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { getUsersCollection, DEPARTMENTS } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
 import { createUser, updateUser, deleteUser, getAssignableRoles } from '@/app/actions/user-management';
+import { importUsersFromExcel, previewImportUsers } from '@/app/actions/import-users';
 import { UserRole } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -55,6 +56,13 @@ export default function UsersPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [assignableRoles, setAssignableRoles] = useState<UserRole[]>([]);
+  
+  // Import states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState<any>(null);
+  const [importPreview, setImportPreview] = useState<any>(null);
 
   // Determine if current user can edit/delete (only superadmin)
   const canEdit = userData?.role === 'superadmin' || 
@@ -263,6 +271,95 @@ export default function UsersPage() {
     }
   };
 
+  // Import handlers
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      alert('กรุณาเลือกไฟล์ Excel (.xlsx หรือ .xls)');
+      return;
+    }
+
+    setImportFile(file);
+    setImportPreview(null);
+    setImportResults(null);
+
+    // Preview import
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        const fileBase64 = base64.split(',')[1];
+
+        const result = await previewImportUsers({
+          fileBase64,
+          currentUserRole: userData!.role,
+        });
+
+        if (result.success) {
+          setImportPreview(result);
+        } else {
+          alert(`ไม่สามารถอ่านไฟล์: ${result.error}`);
+          setImportFile(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+      setImportFile(null);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile || !userData) return;
+
+    if (!confirm(`แน่ใจหรือไม่ที่จะ import ${importPreview?.users?.length || 0} users?\n\nระบบจะ:\n- สร้าง users ใหม่\n- อัปเดต users ที่มีอยู่\n- ข้าม users ที่ข้อมูลเหมือนเดิม`)) {
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        const fileBase64 = base64.split(',')[1];
+
+        const result = await importUsersFromExcel({
+          fileBase64,
+          currentUserRole: userData.role,
+          currentUsername: userData.username,
+        });
+
+        setImportResults(result);
+        setImporting(false);
+
+        // Clear file if success
+        if (result.success) {
+          setImportFile(null);
+          setImportPreview(null);
+        }
+      };
+      reader.readAsDataURL(importFile);
+    } catch (error: any) {
+      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+      setImporting(false);
+    }
+  };
+
+  const downloadExampleExcel = () => {
+    const exampleData = `username,password,name,position,department,role
+teacher01,password123,นายทดสอบ ระบบ,ครู,ฝ่ายบริหาร,user
+teacher02,password456,นางสาวตัวอย่าง เทส,หัวหน้ากลุ่มสาระ,กลุ่มสาระฯ คณิตศาสตร์,user`;
+
+    const blob = new Blob([exampleData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'users_template.csv';
+    link.click();
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -283,13 +380,22 @@ export default function UsersPage() {
             </p>
           </div>
           {canEdit && (
-            <button
-              onClick={openCreateForm}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              เพิ่มผู้ใช้
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                <Upload className="w-5 h-5" />
+                Import Excel
+              </button>
+              <button
+                onClick={openCreateForm}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                เพิ่มผู้ใช้
+              </button>
+            </div>
           )}
         </div>
 
@@ -547,6 +653,247 @@ export default function UsersPage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Import Modal */}
+      <AnimatePresence>
+        {showImportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => !importing && setShowImportModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <FileSpreadsheet className="w-6 h-6 text-blue-600" />
+                  Import Users จาก Excel
+                </h2>
+                {!importing && (
+                  <button
+                    onClick={() => setShowImportModal(false)}
+                    className="text-gray-500 hover:text-gray-700 p-2"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                )}
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    วิธีเตรียมไฟล์ Excel
+                  </h3>
+                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                    <li>ไฟล์ต้องเป็น .xlsx หรือ .xls</li>
+                    <li>Sheet แรกต้องมี Header row (แถวแรก)</li>
+                    <li>Columns ที่จำเป็น: <strong>username, password, name</strong></li>
+                    <li>Columns เสริม: position, department, role</li>
+                    <li>Username ต้องเป็นตัวพิมพ์เล็ก a-z, 0-9, _ หรือ - เท่านั้น</li>
+                    <li>Password ต้องมีอย่างน้อย 6 ตัวอักษร</li>
+                    <li>Role: user, duty_officer, deputy, director, superadmin</li>
+                  </ul>
+                </div>
+
+                {/* Download Template */}
+                <button
+                  onClick={downloadExampleExcel}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors"
+                >
+                  <Download className="w-5 h-5" />
+                  <span className="font-semibold">ดาวน์โหลดไฟล์ตัวอย่าง (CSV)</span>
+                </button>
+
+                {/* File Upload */}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="excel-upload"
+                    disabled={importing}
+                  />
+                  <label
+                    htmlFor="excel-upload"
+                    className={`cursor-pointer flex flex-col items-center ${importing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <Upload className="w-12 h-12 text-gray-400 mb-3" />
+                    <p className="text-lg font-semibold text-gray-700">
+                      {importFile ? importFile.name : 'เลือกไฟล์ Excel'}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      หรือลากไฟล์มาวางที่นี่
+                    </p>
+                  </label>
+                </div>
+
+                {/* Preview */}
+                {importPreview && importPreview.preview && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-bold text-gray-800 mb-3">Preview ({importPreview.users.length} users)</h3>
+                    
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="bg-green-100 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {importPreview.preview.filter((p: any) => !p.exists).length}
+                        </div>
+                        <div className="text-sm text-green-800">สร้างใหม่</div>
+                      </div>
+                      <div className="bg-orange-100 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {importPreview.preview.filter((p: any) => p.exists && p.needsUpdate).length}
+                        </div>
+                        <div className="text-sm text-orange-800">อัปเดต</div>
+                      </div>
+                      <div className="bg-gray-100 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-gray-600">
+                          {importPreview.preview.filter((p: any) => p.exists && !p.needsUpdate).length}
+                        </div>
+                        <div className="text-sm text-gray-800">ข้าม</div>
+                      </div>
+                    </div>
+
+                    <div className="max-h-60 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-200 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Username</th>
+                            <th className="px-3 py-2 text-left">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {importPreview.preview.map((item: any, index: number) => (
+                            <tr key={index} className="hover:bg-gray-100">
+                              <td className="px-3 py-2">{item.username}</td>
+                              <td className="px-3 py-2">
+                                <span className={`px-2 py-1 rounded-full text-xs ${
+                                  !item.exists 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : item.needsUpdate 
+                                      ? 'bg-orange-100 text-orange-800' 
+                                      : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {!item.exists ? 'สร้างใหม่' : item.needsUpdate ? 'อัปเดต' : 'ข้าม'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Import Results */}
+                {importResults && (
+                  <div className={`rounded-lg p-4 ${
+                    importResults.success 
+                      ? 'bg-green-50 border border-green-200' 
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    <h3 className={`font-bold mb-3 flex items-center gap-2 ${
+                      importResults.success ? 'text-green-900' : 'text-red-900'
+                    }`}>
+                      {importResults.success ? (
+                        <CheckCircle2 className="w-5 h-5" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5" />
+                      )}
+                      ผลลัพธ์การ Import
+                    </h3>
+                    
+                    <div className="grid grid-cols-4 gap-3 mb-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{importResults.created}</div>
+                        <div className="text-xs text-green-800">สร้างใหม่</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">{importResults.updated}</div>
+                        <div className="text-xs text-orange-800">อัปเดต</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-600">{importResults.skipped}</div>
+                        <div className="text-xs text-gray-800">ข้าม</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">{importResults.errors.length}</div>
+                        <div className="text-xs text-red-800">ข้อผิดพลาด</div>
+                      </div>
+                    </div>
+
+                    {importResults.errors.length > 0 && (
+                      <div className="bg-red-100 rounded-lg p-3 max-h-40 overflow-y-auto">
+                        <h4 className="font-bold text-red-900 mb-2 text-sm">Errors:</h4>
+                        <ul className="text-xs text-red-800 space-y-1">
+                          {importResults.errors.map((err: any, index: number) => (
+                            <li key={index}>
+                              {err.username}: {err.error}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                  {importPreview && !importResults && (
+                    <button
+                      onClick={handleImport}
+                      disabled={importing || !importFile}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {importing ? (
+                        <>
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                          กำลัง Import...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5" />
+                          เริ่ม Import ({importPreview.users.length} users)
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {importResults && (
+                    <button
+                      onClick={() => {
+                        setImportFile(null);
+                        setImportPreview(null);
+                        setImportResults(null);
+                        setShowImportModal(false);
+                      }}
+                      className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors"
+                    >
+                      ปิด
+                    </button>
+                  )}
+                  {!importing && !importResults && (
+                    <button
+                      onClick={() => setShowImportModal(false)}
+                      className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors"
+                    >
+                      ยกเลิก
+                    </button>
+                  )}
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}

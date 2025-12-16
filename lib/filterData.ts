@@ -1,5 +1,5 @@
 // Firebase data fetching functions for Data Filtering
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, QuerySnapshot, getDocsFromServer } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getUsersCollection, getEntriesCollection, CATEGORIES } from '@/lib/constants';
 
@@ -31,12 +31,16 @@ export interface FilterParams {
 }
 
 // Get all teachers from Firebase
-export async function getTeachers(): Promise<Teacher[]> {
+export async function getTeachers(forceRefresh = false): Promise<Teacher[]> {
   try {
     const usersPath = getUsersCollection().split('/');
     const usersRef = collection(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4]);
     
-    const snapshot = await getDocs(usersRef);
+    // ⚡ Use getDocsFromServer to bypass cache when forceRefresh is true
+    const snapshot = forceRefresh 
+      ? await getDocsFromServer(query(usersRef))
+      : await getDocs(usersRef);
+      
     const teachers: Teacher[] = [];
     
     snapshot.forEach((doc) => {
@@ -79,7 +83,7 @@ export async function getTeachersBySubjectGroup(subjectGroup: string): Promise<T
 }
 
 // Get filtered work records from Firebase
-export async function getWorkRecordsFiltered(filters: FilterParams): Promise<WorkRecord[]> {
+export async function getWorkRecordsFiltered(filters: FilterParams, forceRefresh = false): Promise<WorkRecord[]> {
   try {
     const entriesPath = getEntriesCollection().split('/');
     const entriesRef = collection(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4]);
@@ -87,12 +91,15 @@ export async function getWorkRecordsFiltered(filters: FilterParams): Promise<Wor
     // Build query - start with all entries
     let q = query(entriesRef);
     
-    // Fetch all entries
-    const snapshot = await getDocs(q);
+    // ⚡ Fetch all entries - bypass cache if forceRefresh is true
+    const snapshot = forceRefresh 
+      ? await getDocsFromServer(q)
+      : await getDocs(q);
+      
     const allEntries: WorkRecord[] = [];
     
-    // Get all teachers for mapping userId to teacher info
-    const teachers = await getTeachers();
+    // Get all teachers for mapping userId to teacher info (also force refresh)
+    const teachers = await getTeachers(forceRefresh);
     const teacherMap = new Map(teachers.map(t => [t.id, t]));
     
     snapshot.forEach((doc) => {
