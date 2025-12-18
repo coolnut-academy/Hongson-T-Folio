@@ -49,6 +49,7 @@ const roleLabels: Record<UserRole, string> = {
   director: 'ผอ.',
   deputy: 'รอง ผอ.',
   duty_officer: 'เวรประจำวัน',
+  team_leader: 'หัวหน้าทีม',
   user: 'ครู',
 };
 

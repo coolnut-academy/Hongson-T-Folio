@@ -19,6 +19,8 @@ export default function Home() {
           router.push('/admin'); // Redirect to admin home page
         } else if (userData.role === 'duty_officer') {
           router.push('/admin/duty');
+        } else if (userData.role === 'team_leader' || userData.role === 'user') {
+          router.push('/dashboard'); // Teacher & Team Leader
         } else {
           router.push('/dashboard');
         }

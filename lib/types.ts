@@ -5,7 +5,13 @@ export interface Entry {
   id: string;
   userId: string;
   title: string;
-  category: string;
+  
+  // Phase 3.5: Category ID Reference (recommended)
+  categoryId?: string; // NEW: Reference to WorkCategory document ID
+  
+  // Legacy: Keep for backward compatibility with old entries
+  category?: string; // DEPRECATED: Will be migrated to categoryId
+  
   description: string;
   dateStart: string;
   dateEnd: string;
@@ -15,6 +21,11 @@ export interface Entry {
   activityName?: string;
   level?: string;
   organization?: string;
+  
+  // Phase 1: Dynamic Work Category fields
+  hours?: number;
+  subCategory?: string;
+  competitionName?: string;
   
   timestamp?: number;
   createdAt?: Timestamp;
@@ -49,7 +60,7 @@ export interface Approval {
 }
 
 // User roles for RBAC
-export type UserRole = 'superadmin' | 'director' | 'deputy' | 'duty_officer' | 'user';
+export type UserRole = 'superadmin' | 'director' | 'deputy' | 'duty_officer' | 'team_leader' | 'user';
 
 // User type
 export interface UserData {
@@ -59,5 +70,30 @@ export interface UserData {
   position: string;
   role: UserRole;
   department: string;
+}
+
+// Phase 1: Dynamic Work Category Configuration
+export interface WorkCategoryConfig {
+  formConfig: {
+    titleLabel: string;
+    organizationLabel: string;
+    showHours: boolean;
+    showLevel: boolean;
+    showCompetitionName: boolean;
+    levelOptions?: string[];
+    hasSubCategories?: boolean;
+    subCategoryOptions?: string[];
+    defaultOrganization?: string;
+  };
+}
+
+// Phase 1: Work Category Document
+export interface WorkCategory {
+  id: string;
+  name: string;
+  order: number;
+  config: WorkCategoryConfig;
+  createdAt?: Timestamp | string; // Timestamp in Firestore, string when serialized for client
+  updatedAt?: Timestamp | string; // Timestamp in Firestore, string when serialized for client
 }
 

@@ -35,6 +35,7 @@ const ROLES = [
   { value: 'director', label: 'ผอ.', color: 'bg-purple-100 text-purple-800' },
   { value: 'deputy', label: 'รอง ผอ.', color: 'bg-blue-100 text-blue-800' },
   { value: 'duty_officer', label: 'เวรประจำวัน', color: 'bg-emerald-100 text-emerald-800' },
+  { value: 'team_leader', label: '👨‍🏫 หัวหน้างาน', color: 'bg-cyan-100 text-cyan-800' },
   { value: 'user', label: 'ครู', color: 'bg-stone-100 text-stone-800' },
 ];
 
@@ -73,6 +74,7 @@ export default function PermissionsPage() {
             director: ['/admin/dashboard', '/admin/dashboard/kpi-overview', '/admin/filter', '/admin/compliance', '/admin/users'],
             deputy: ['/admin/dashboard', '/admin/dashboard/kpi-overview', '/admin/filter', '/admin/compliance', '/admin/users'],
             duty_officer: ['/admin/duty'],
+            team_leader: ['/dashboard'],
             user: ['/dashboard'],
           };
           setPermissions(defaultPermissions);

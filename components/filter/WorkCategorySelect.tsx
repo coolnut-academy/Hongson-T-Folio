@@ -1,6 +1,8 @@
 'use client';
 
-import { getWorkCategories } from '@/lib/filterData';
+import { useState, useEffect } from 'react';
+import { WorkCategory } from '@/lib/types';
+import { getWorkCategories } from '@/app/actions/categories';
 
 interface WorkCategorySelectProps {
   value: string;
@@ -8,7 +10,23 @@ interface WorkCategorySelectProps {
 }
 
 export function WorkCategorySelect({ value, onChange }: WorkCategorySelectProps) {
-  const categories = getWorkCategories();
+  // Phase 3.5: Load categories dynamically
+  const [categories, setCategories] = useState<WorkCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await getWorkCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
 
   return (
     <div className="space-y-2">
@@ -19,13 +37,18 @@ export function WorkCategorySelect({ value, onChange }: WorkCategorySelectProps)
         id="work-category"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={loading}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {categories.map((category) => (
-          <option key={category} value={category}>
-            {category}
-          </option>
-        ))}
+        {loading ? (
+          <option>กำลังโหลด...</option>
+        ) : (
+          categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))
+        )}
       </select>
     </div>
   );

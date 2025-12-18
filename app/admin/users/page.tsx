@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Trash2, Plus, X, Edit2, Eye, Lock, Save, Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Trash2, Plus, X, Edit2, Eye, Lock, Save, Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, RefreshCw, ChevronDown, ChevronRight, Users as UsersIcon } from 'lucide-react';
 import { getUsersCollection, DEPARTMENTS } from '@/lib/constants';
 import { useAuth } from '@/context/AuthContext';
 import { createUser, updateUser, deleteUser, getAssignableRoles } from '@/app/actions/user-management';
@@ -27,6 +27,7 @@ const roleLabels: Record<UserRole, string> = {
   director: 'ผอ.',
   deputy: 'รอง ผอ.',
   duty_officer: 'เวรประจำวัน',
+  team_leader: '👨‍🏫 หัวหน้างาน',
   user: 'ครู',
 };
 
@@ -35,6 +36,7 @@ const roleColors: Record<UserRole, string> = {
   director: 'bg-purple-100 text-purple-800 border-purple-200',
   deputy: 'bg-blue-100 text-blue-800 border-blue-200',
   duty_officer: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  team_leader: 'bg-cyan-100 text-cyan-800 border-cyan-200',
   user: 'bg-stone-100 text-stone-800 border-stone-200',
 };
 
@@ -63,6 +65,9 @@ export default function UsersPage() {
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<any>(null);
   const [importPreview, setImportPreview] = useState<any>(null);
+  
+  // Department collapse state
+  const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({});
 
   // Determine if current user can edit/delete (only superadmin)
   const canEdit = userData?.role === 'superadmin' || 
@@ -115,19 +120,9 @@ export default function UsersPage() {
         } as User);
       });
       
-      // Sort by role (superadmin first) then by name
+      // Sort by name (ก-ฮ, A-Z) using Thai locale
       usersData.sort((a, b) => {
-        const roleOrder: Record<UserRole, number> = { 
-          superadmin: 0, 
-          director: 1, 
-          deputy: 2, 
-          duty_officer: 3, 
-          user: 4 
-        };
-        if (roleOrder[a.role] !== roleOrder[b.role]) {
-          return roleOrder[a.role] - roleOrder[b.role];
-        }
-        return a.name.localeCompare(b.name);
+        return a.name.localeCompare(b.name, 'th');
       });
       
       setUsers(usersData);
@@ -136,6 +131,39 @@ export default function UsersPage() {
 
     return () => unsubscribe();
   }, []);
+
+  // Group users by department and separate admin roles
+  const groupedUsers = useMemo(() => {
+    const adminUsers = users.filter(u => 
+      u.role === 'superadmin' || 
+      u.role === 'director' || 
+      u.role === 'deputy' || 
+      u.role === 'duty_officer'
+    );
+    
+    const regularUsers = users.filter(u => 
+      u.role === 'user' || u.role === 'team_leader'
+    );
+    
+    // Group regular users by department
+    const byDept: Record<string, User[]> = {};
+    regularUsers.forEach(user => {
+      const dept = user.department || 'ไม่ระบุกลุ่มสาระ';
+      if (!byDept[dept]) {
+        byDept[dept] = [];
+      }
+      byDept[dept].push(user);
+    });
+    
+    return { adminUsers, byDept };
+  }, [users]);
+
+  const toggleDepartment = (dept: string) => {
+    setCollapsedDepts(prev => ({
+      ...prev,
+      [dept]: !prev[dept]
+    }));
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -399,71 +427,174 @@ teacher02,password456,นางสาวตัวอย่าง เทส,ห�
           )}
         </div>
 
-        {/* Users Table */}
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ชื่อผู้ใช้</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ชื่อ-นามสกุล</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ตำแหน่ง</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">แผนก</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">บทบาท</th>
-                  {canEdit && (
-                    <th className="px-4 py-3 text-center text-sm font-bold text-gray-700">จัดการ</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, index) => (
-                  <tr
-                    key={user.id}
-                    className={`border-b border-gray-100 hover:bg-gray-50 ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-gray-800">{user.username}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{user.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{user.position || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{user.department}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${roleColors[user.role]}`}>
-                        {roleLabels[user.role]}
-                      </span>
-                    </td>
+        {/* Admin Users Section */}
+        {groupedUsers.adminUsers.length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-6 py-4">
+              <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2">
+                <UsersIcon className="w-5 h-5" />
+                ผู้ดูแลระบบ ({groupedUsers.adminUsers.length} คน)
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ชื่อผู้ใช้</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ชื่อ-นามสกุล</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ตำแหน่ง</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">บทบาท</th>
                     {canEdit && (
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => openEditForm(user)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="แก้ไข"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(user)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="ลบ"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+                      <th className="px-4 py-3 text-center text-sm font-bold text-gray-700">จัดการ</th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {users.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              ไม่มีข้อมูลผู้ใช้
+                </thead>
+                <tbody>
+                  {groupedUsers.adminUsers.map((user, index) => (
+                    <tr
+                      key={user.id}
+                      className={`border-b border-gray-100 hover:bg-gray-50 ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-gray-800">{user.username}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{user.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{user.position || '-'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${roleColors[user.role]}`}>
+                          {roleLabels[user.role]}
+                        </span>
+                      </td>
+                      {canEdit && (
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => openEditForm(user)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="แก้ไข"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(user)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="ลบ"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Teachers by Department */}
+        {Object.keys(groupedUsers.byDept).sort().map((dept) => {
+          const deptUsers = groupedUsers.byDept[dept];
+          const isCollapsed = collapsedDepts[dept];
+          
+          return (
+            <div key={dept} className="bg-white rounded-xl shadow-lg overflow-hidden mb-4">
+              <button
+                onClick={() => toggleDepartment(dept)}
+                className="w-full bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-200 px-6 py-4 hover:from-emerald-100 hover:to-green-100 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-emerald-900 flex items-center gap-2">
+                    {isCollapsed ? (
+                      <ChevronRight className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
+                    <UsersIcon className="w-5 h-5" />
+                    {dept}
+                  </h2>
+                  <span className="px-3 py-1 bg-emerald-600 text-white rounded-full text-sm font-bold">
+                    {deptUsers.length} คน
+                  </span>
+                </div>
+              </button>
+              
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ชื่อผู้ใช้</th>
+                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ชื่อ-นามสกุล</th>
+                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">ตำแหน่ง</th>
+                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">บทบาท</th>
+                            {canEdit && (
+                              <th className="px-4 py-3 text-center text-sm font-bold text-gray-700">จัดการ</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {deptUsers.map((user, index) => (
+                            <tr
+                              key={user.id}
+                              className={`border-b border-gray-100 hover:bg-gray-50 ${
+                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                              }`}
+                            >
+                              <td className="px-4 py-3 text-sm font-medium text-gray-800">{user.username}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700">{user.name}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{user.position || '-'}</td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${roleColors[user.role]}`}>
+                                  {roleLabels[user.role]}
+                                </span>
+                              </td>
+                              {canEdit && (
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => openEditForm(user)}
+                                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                      title="แก้ไข"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(user)}
+                                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="ลบ"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+
+        {users.length === 0 && (
+          <div className="bg-white rounded-xl shadow-lg p-12 text-center text-gray-500">
+            ไม่มีข้อมูลผู้ใช้
+          </div>
+        )}
 
         {/* Read-only notice */}
         {!canEdit && (

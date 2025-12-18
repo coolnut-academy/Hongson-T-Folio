@@ -44,6 +44,9 @@ export const getEntriesCollection = () =>
 export const getApprovalsCollection = () => 
   `artifacts/${APP_ID}/public/data/approvals`;
 
+export const getWorkCategoriesCollection = () => 
+  `artifacts/${APP_ID}/public/data/work_categories`;
+
 // Helper to get approval document ID
 export const getApprovalDocId = (userId: string, year: number, month: number) => {
   const mm = String(month).padStart(2, '0');

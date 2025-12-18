@@ -390,7 +390,7 @@ export async function getAssignableRoles(currentUserRole: UserRole, currentUsern
                        currentUsername === 'admingod';
   
   if (isSuperadmin) {
-    return ['superadmin', 'director', 'deputy', 'duty_officer', 'user'];
+    return ['superadmin', 'director', 'deputy', 'duty_officer', 'team_leader', 'user'];
   }
   
   if (currentUserRole === 'director' || currentUserRole === 'deputy') {

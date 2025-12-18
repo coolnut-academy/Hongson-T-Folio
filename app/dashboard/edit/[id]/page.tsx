@@ -7,7 +7,8 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { getEntriesCollection } from '@/lib/constants';
-import { CATEGORIES, LEVELS } from '@/lib/constants';
+import { WorkCategory } from '@/lib/types';
+import { getWorkCategories } from '@/app/actions/categories';
 import { motion, AnimatePresence } from 'framer-motion';
 // ✅ Import Library บีบอัดรูป
 import imageCompression from 'browser-image-compression';
@@ -38,16 +39,23 @@ export default function EditEntryPage() {
   const entryId = params.id as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Dynamic Work Categories
+  const [categories, setCategories] = useState<WorkCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<WorkCategory | null>(null);
+
   const [formData, setFormData] = useState({
-    category: CATEGORIES[0],
+    categoryId: '', // Phase 3.5: Use category ID
     title: '',
     description: '',
     dateStart: new Date().toISOString().split('T')[0],
     dateEnd: new Date().toISOString().split('T')[0],
-    // V2: Conditional fields
+    // Phase 1: Dynamic fields
     activityName: '',
-    level: LEVELS[0],
+    level: '',
     organization: '',
+    hours: '',
+    competitionName: '',
   });
 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -59,12 +67,31 @@ export default function EditEntryPage() {
   const [isCompressing, setIsCompressing] = useState(false);
   const [error, setError] = useState('');
 
-  // V2: Check if conditional fields should be shown
-  const showConditionalFields = 
-    formData.category === 'งานพัฒนาวิชาชีพ' || 
-    formData.category === 'งานพัฒนาศักยภาพนักเรียน';
+  const categoryConfig = selectedCategory?.config.formConfig;
 
-  const showOthersHint = formData.category === 'อื่นๆ';
+  // Load categories
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await getWorkCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Update selected category when categoryId changes
+  useEffect(() => {
+    if (formData.categoryId && categories.length > 0) {
+      // Phase 3.5: Find by ID
+      const category = categories.find(cat => cat.id === formData.categoryId);
+      setSelectedCategory(category || null);
+    }
+  }, [formData.categoryId, categories]);
 
   // Fetch existing entry data
   useEffect(() => {
@@ -85,15 +112,26 @@ export default function EditEntryPage() {
             return;
           }
 
+          // Phase 3.5: Load categoryId (new) or find by category name (legacy)
+          let categoryId = data.categoryId || '';
+          
+          // Legacy: If no categoryId, try to find it by category name
+          if (!categoryId && data.category) {
+            const category = categories.find(cat => cat.name === data.category);
+            categoryId = category?.id || '';
+          }
+          
           setFormData({
-            category: data.category || CATEGORIES[0],
+            categoryId: categoryId,
             title: data.title || '',
             description: data.description || '',
             dateStart: data.dateStart || '',
             dateEnd: data.dateEnd || '',
             activityName: data.activityName || '',
-            level: data.level || LEVELS[0],
+            level: data.level || '',
             organization: data.organization || '',
+            hours: data.hours ? String(data.hours) : '',
+            competitionName: data.competitionName || '',
           });
           
           setExistingImages(data.images || []);
@@ -209,7 +247,7 @@ export default function EditEntryPage() {
       return;
     }
 
-    if (!formData.category || !formData.title || !formData.dateStart) {
+    if (!formData.categoryId || !formData.title || !formData.dateStart) {
       setError('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
       return;
     }
@@ -226,12 +264,8 @@ export default function EditEntryPage() {
       return;
     }
 
-    if (showConditionalFields) {
-      if (!formData.activityName || !formData.level || !formData.organization) {
-        setError('กรุณากรอกข้อมูลเพิ่มเติม (ชื่อกิจกรรม, ระดับ, หน่วยงาน) ให้ครบถ้วน');
-        return;
-      }
-    }
+    // Phase 1: All dynamic fields are now OPTIONAL (no validation required)
+    // User can save with empty values and edit later
 
     setUploading(true);
 
@@ -252,8 +286,10 @@ export default function EditEntryPage() {
       const entriesPath = getEntriesCollection().split('/');
       const entryRef = doc(db, entriesPath[0], entriesPath[1], entriesPath[2], entriesPath[3], entriesPath[4], entryId);
 
+      // Phase 3.5: Update with categoryId (NEW) and category name (legacy)
       const updateData: Record<string, unknown> = {
-        category: formData.category,
+        categoryId: formData.categoryId, // NEW
+        category: selectedCategory?.name || '', // Legacy: Keep for backward compatibility
         title: formData.title,
         description: formData.description,
         dateStart: formData.dateStart,
@@ -262,14 +298,29 @@ export default function EditEntryPage() {
         updatedAt: new Date(),
       };
 
-      if (showConditionalFields) {
-        updateData.activityName = formData.activityName;
-        updateData.level = formData.level;
+      // Phase 1: Add dynamic fields based on category config
+      if (formData.organization) {
         updateData.organization = formData.organization;
-      } else {
-        updateData.activityName = null;
-        updateData.level = null;
-        updateData.organization = null;
+      }
+      
+      if (categoryConfig) {
+        if (categoryConfig.showLevel && formData.level) {
+          updateData.level = formData.level;
+        } else {
+          updateData.level = null;
+        }
+        
+        if (categoryConfig.showHours && formData.hours) {
+          updateData.hours = parseFloat(formData.hours);
+        } else {
+          updateData.hours = null;
+        }
+        
+        if (categoryConfig.showCompetitionName && formData.competitionName) {
+          updateData.competitionName = formData.competitionName;
+        } else {
+          updateData.competitionName = null;
+        }
       }
 
       await updateDoc(entryRef, updateData);
@@ -329,16 +380,21 @@ export default function EditEntryPage() {
                 </label>
                 <div className="relative">
                   <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
+                    id="categoryId"
+                    name="categoryId"
+                    value={formData.categoryId}
                     onChange={handleInputChange}
                     required
-                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none"
+                    disabled={loadingCategories}
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
+                    {loadingCategories ? (
+                      <option>กำลังโหลด...</option>
+                    ) : (
+                      categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))
+                    )}
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                     <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -346,9 +402,9 @@ export default function EditEntryPage() {
                 </div>
               </div>
 
-              {/* Conditional Fields Section */}
+              {/* Phase 1: Dynamic Fields */}
               <AnimatePresence mode="wait">
-                {showConditionalFields && (
+                {categoryConfig && (categoryConfig.showHours || categoryConfig.showLevel || categoryConfig.showCompetitionName) && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -360,42 +416,70 @@ export default function EditEntryPage() {
                       <PenTool className="w-4 h-4 mr-2" /> รายละเอียดเพิ่มเติม
                     </h4>
                     
-                    <div className="space-y-1.5">
-                      <label htmlFor="activityName" className="text-xs font-bold text-indigo-700">
-                        ชื่อการแข่งขัน/พัฒนาตนเอง <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        id="activityName"
-                        name="activityName"
-                        value={formData.activityName}
-                        onChange={handleInputChange}
-                        placeholder="ระบุชื่อหลักสูตร หรือ รายการแข่งขัน"
-                        className="w-full p-2.5 border border-indigo-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                      />
-                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      {/* Hours */}
+                      {categoryConfig.showHours && (
+                        <div className="space-y-1.5">
+                          <label htmlFor="hours" className="text-xs font-bold text-indigo-700">
+                            จำนวนชั่วโมง
+                          </label>
+                          <input
+                            type="number"
+                            id="hours"
+                            name="hours"
+                            value={formData.hours}
+                            onChange={handleInputChange}
+                            placeholder="เช่น 6"
+                            step="0.5"
+                            min="0"
+                            className="w-full p-2.5 sm:p-3 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                          />
+                        </div>
+                      )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label htmlFor="level" className="text-xs font-bold text-indigo-700">
-                          ระดับ <span className="text-rose-500">*</span>
-                        </label>
-                        <select
-                          id="level"
-                          name="level"
-                          value={formData.level}
-                          onChange={handleInputChange}
-                          className="w-full p-2.5 border border-indigo-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                        >
-                          {LEVELS.map((lvl) => (
-                            <option key={lvl} value={lvl}>{lvl}</option>
-                          ))}
-                        </select>
-                      </div>
+                      {/* Level */}
+                      {categoryConfig.showLevel && categoryConfig.levelOptions && (
+                        <div className="space-y-1.5">
+                          <label htmlFor="level" className="text-xs font-bold text-indigo-700">
+                            ระดับ
+                          </label>
+                          <select
+                            id="level"
+                            name="level"
+                            value={formData.level}
+                            onChange={handleInputChange}
+                            className="w-full p-2.5 sm:p-3 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                          >
+                            <option value="">-- เลือกระดับ (ถ้ามี) --</option>
+                            {categoryConfig.levelOptions.map((lvl) => (
+                              <option key={lvl} value={lvl}>{lvl}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
-                      <div className="space-y-1.5">
+                      {/* Competition Name */}
+                      {categoryConfig.showCompetitionName && (
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <label htmlFor="competitionName" className="text-xs font-bold text-indigo-700">
+                            ชื่อการแข่งขัน/รายการ
+                          </label>
+                          <input
+                            type="text"
+                            id="competitionName"
+                            name="competitionName"
+                            value={formData.competitionName}
+                            onChange={handleInputChange}
+                            placeholder="เช่น งานศิลปหัตถกรรมนักเรียน ครั้งที่ 72 (ถ้ามี)"
+                            className="w-full p-2.5 sm:p-3 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                          />
+                        </div>
+                      )}
+
+                      {/* Organization */}
+                      <div className="space-y-1.5 sm:col-span-2">
                         <label htmlFor="organization" className="text-xs font-bold text-indigo-700">
-                          หน่วยงานที่มอบ <span className="text-rose-500">*</span>
+                          {categoryConfig.organizationLabel || 'หน่วยงาน'}
                         </label>
                         <input
                           type="text"
@@ -403,8 +487,8 @@ export default function EditEntryPage() {
                           name="organization"
                           value={formData.organization}
                           onChange={handleInputChange}
-                          placeholder="เช่น สพฐ., สพม., มหาวิทยาลัย"
-                          className="w-full p-2.5 border border-indigo-200 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                          placeholder={categoryConfig.defaultOrganization ? `ค่าเริ่มต้น: ${categoryConfig.defaultOrganization}` : "เช่น สพฐ., สพม., มหาวิทยาลัย"}
+                          className="w-full p-2.5 sm:p-3 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -412,23 +496,10 @@ export default function EditEntryPage() {
                 )}
               </AnimatePresence>
 
-              {showOthersHint && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3"
-                >
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-amber-900">หมวดอื่นๆ</p>
-                    <p className="text-xs text-amber-700 mt-1">กรุณาระบุรายละเอียดให้ชัดเจนในช่องชื่องาน และคำอธิบาย</p>
-                  </div>
-                </motion.div>
-              )}
-
+              {/* Title Input - Dynamic Label */}
               <div className="space-y-2">
                 <label htmlFor="title" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
-                  ชื่องาน <span className="text-rose-500">*</span>
+                  {categoryConfig?.titleLabel || 'ชื่องาน'} <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative group">
                   <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
@@ -439,7 +510,7 @@ export default function EditEntryPage() {
                     value={formData.title}
                     onChange={handleInputChange}
                     required
-                    placeholder="เช่น เข้าร่วมอบรมเชิงปฏิบัติการ..."
+                    placeholder={`เช่น ${categoryConfig?.titleLabel || 'ชื่องาน'}...`}
                     className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>

@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { getUsersCollection } from '@/lib/constants';
 import { autoSyncUserToFirestore } from '@/app/actions/sync-users';
 
-export type UserRole = 'superadmin' | 'director' | 'deputy' | 'duty_officer' | 'user';
+export type UserRole = 'superadmin' | 'director' | 'deputy' | 'duty_officer' | 'team_leader' | 'user';
 
 export interface UserData {
   id: string; // username (doc ID)
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const firestoreRole = (data.role as UserRole) || 'user';
             
             // Use Custom Claims role if available and valid, otherwise use Firestore role
-            const role = customRole && ['superadmin', 'director', 'deputy', 'duty_officer', 'user'].includes(customRole) 
+            const role = customRole && ['superadmin', 'director', 'deputy', 'duty_officer', 'team_leader', 'user'].includes(customRole) 
               ? customRole 
               : firestoreRole;
             

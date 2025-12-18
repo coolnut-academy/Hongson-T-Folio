@@ -18,7 +18,8 @@ import {
   Filter,
   Settings,
   Calendar,
-  Home
+  Home,
+  Folder
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -79,6 +80,8 @@ export default function AdminLayout({
             deputy: ['/admin/dashboard', '/admin/dashboard/kpi-overview', '/admin/filter', '/admin/compliance', '/admin/users'],
             duty_officer: ['/admin/duty'],
             user: ['/dashboard'],
+            team_leader: ['/dashboard'],
+            superadmin: [], // Superadmin has access to all pages by default
           };
           setRolePermissions(defaultPerms[userData.role] || []);
         }
@@ -101,6 +104,8 @@ export default function AdminLayout({
     { label: 'ตรวจสอบการส่งงาน', href: '/admin/compliance', icon: FileCheck },
     { label: 'เวรประจำวัน', href: '/admin/duty', icon: Calendar },
     { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users },
+    { label: 'จัดการหมวดหมู่', href: '/admin/categories', icon: Folder },
+    { label: 'Migrate Categories', href: '/admin/migrate-categories', icon: Settings },
     { label: 'การตั้งค่าระบบ', href: '/admin/settings', icon: Settings },
   ];
 
@@ -187,6 +192,7 @@ export default function AdminLayout({
                      userData.role === 'director' ? 'ผอ.' :
                      userData.role === 'deputy' ? 'รอง ผอ.' :
                      userData.role === 'duty_officer' ? 'เวรประจำวัน' :
+                     userData.role === 'team_leader' ? '👨‍🏫 หัวหน้างาน' :
                      'ครู'}
                   </p>
                 </div>
@@ -259,6 +265,7 @@ export default function AdminLayout({
                            userData.role === 'director' ? 'ผอ.' :
                            userData.role === 'deputy' ? 'รอง ผอ.' :
                            userData.role === 'duty_officer' ? 'เวรประจำวัน' :
+                           userData.role === 'team_leader' ? '👨‍🏫 หัวหน้างาน' :
                            'ครู'}
                         </p>
                       </div>
