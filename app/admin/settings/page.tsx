@@ -253,13 +253,29 @@ export default function AdminSettingsPage() {
       <div className="bg-amber-50 border-l-4 border-amber-500 p-3 sm:p-4 rounded-lg">
         <div className="flex items-start gap-2 sm:gap-3">
           <div className="text-base sm:text-lg flex-shrink-0 mt-0.5">ℹ️</div>
-          <div className="text-xs sm:text-sm text-amber-800">
+          <div className="text-xs sm:text-sm text-amber-800 flex-1">
             <p className="font-semibold mb-1 sm:mb-2">หมายเหตุ:</p>
-            <ul className="list-disc list-inside space-y-1 leading-relaxed">
+            <ul className="list-disc list-inside space-y-1 leading-relaxed mb-3">
               <li>เมื่อปิดเว็บไซต์ ผู้ใช้ทั่วไปจะเห็นหน้า Maintenance Mode</li>
-              <li>ผู้ดูแลระบบสามารถเข้าถึงได้ผ่านปุ่ม "Admin Working Space" ด้วยรหัสลับ</li>
+              <li>ผู้ดูแลระบบสามารถเข้าถึงได้ผ่านปุ่ม &quot;Admin Working Space&quot; ด้วยรหัสลับ</li>
               <li>การเปลี่ยนแปลงจะมีผลทันที</li>
             </ul>
+            
+            {/* Secret Code Display */}
+            <div className="bg-amber-100 border-2 border-amber-300 rounded-lg p-3 sm:p-4 mt-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" />
+                <span className="font-bold text-amber-900 text-sm sm:text-base">รหัสลับ Admin Working Space:</span>
+              </div>
+              <div className="bg-white border-2 border-amber-400 rounded-lg px-4 py-2 sm:px-6 sm:py-3">
+                <code className="font-mono text-lg sm:text-xl font-bold text-amber-900 tracking-wider">
+                  god1234
+                </code>
+              </div>
+              <p className="text-xs text-amber-700 mt-2 italic">
+                ใช้รหัสนี้เมื่อเว็บไซต์อยู่ในโหมด Maintenance เพื่อเข้าถึงระบบ Admin
+              </p>
+            </div>
           </div>
         </div>
       </div>

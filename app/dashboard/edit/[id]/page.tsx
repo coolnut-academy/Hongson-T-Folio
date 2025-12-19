@@ -65,6 +65,8 @@ export default function EditEntryPage() {
   const [loading, setLoading] = useState(true);
   // ✅ เพิ่ม state สำหรับ Loading การบีบอัด
   const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState(0); // Progress percentage (0-100)
+  const [compressingFileName, setCompressingFileName] = useState<string>(''); // Current file being compressed
   const [error, setError] = useState('');
 
   const categoryConfig = selectedCategory?.config.formConfig;
@@ -186,6 +188,7 @@ export default function EditEntryPage() {
     // เริ่มกระบวนการบีบอัด
     setIsCompressing(true);
     setError('');
+    setCompressionProgress(0);
 
     try {
       const compressionOptions = {
@@ -194,16 +197,32 @@ export default function EditEntryPage() {
         useWebWorker: true,
       };
 
+      // Compress all files with progress tracking
       const compressedFiles: File[] = [];
-      for (const file of files) {
+      const totalFiles = files.length;
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setCompressingFileName(file.name);
+        
+        // Calculate progress: (i / totalFiles) * 100
+        const baseProgress = (i / totalFiles) * 100;
+        setCompressionProgress(baseProgress);
+        
         try {
           const compressedFile = await imageCompression(file, compressionOptions);
           compressedFiles.push(compressedFile);
+          
+          // Update progress after each file is compressed
+          const newProgress = ((i + 1) / totalFiles) * 100;
+          setCompressionProgress(newProgress);
         } catch (compressionError) {
           console.error(`Failed to compress ${file.name}:`, compressionError);
           throw new Error(`ไม่สามารถบีบอัดไฟล์ ${file.name} ได้`);
         }
       }
+      
+      setCompressionProgress(100);
 
       // เพิ่มไฟล์ที่บีบอัดแล้วเข้า State
       const newFiles = [...imageFiles, ...compressedFiles];
@@ -222,6 +241,8 @@ export default function EditEntryPage() {
       alert(`❌ ${errorMessage}`);
     } finally {
       setIsCompressing(false);
+      setCompressionProgress(0);
+      setCompressingFileName('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -673,6 +694,26 @@ export default function EditEntryPage() {
                   <p className="text-xs text-indigo-600/60 mt-1">
                     {isCompressing ? 'โปรดรอสักครู่' : 'หรือแตะที่นี่บนมือถือ'}
                   </p>
+                  
+                  {/* Compression Progress Indicator */}
+                  {isCompressing && (
+                    <div className="mt-4 p-3 bg-white rounded-lg border border-indigo-200">
+                      {compressingFileName && (
+                        <p className="text-xs text-indigo-700 mb-2 font-medium truncate">
+                          กำลังบีบอัด: {compressingFileName}
+                        </p>
+                      )}
+                      <div className="w-full bg-indigo-100 rounded-full h-2.5 mb-1">
+                        <div
+                          className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${Math.min(compressionProgress, 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-indigo-600 text-right font-semibold">
+                        {Math.round(Math.min(compressionProgress, 100))}%
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

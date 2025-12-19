@@ -10,7 +10,8 @@ import {
   deleteWorkCategory, 
   reorderCategories,
   checkCategoryUsage,
-  migrateCategoryEntries
+  migrateCategoryEntries,
+  forceSeedDefaultCategories
 } from '@/app/actions/categories';
 import { 
   Plus, 
@@ -46,6 +47,9 @@ export default function CategoriesPage() {
   
   // Category usage counts
   const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
+  
+  // Restore categories state
+  const [restoring, setRestoring] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -262,6 +266,32 @@ export default function CategoriesPage() {
     }
   };
 
+  const handleRestoreCategories = async () => {
+    if (!confirm('⚠️ กู้คืนหมวดหมู่เริ่มต้น?\n\nจะเพิ่มหมวดหมู่ 8 หมวดหมู่ที่กำหนดไว้ (ถ้ายังไม่มี)\n\nหมวดหมู่ที่มีอยู่แล้วจะไม่ถูกลบ')) {
+      return;
+    }
+
+    setRestoring(true);
+    setError('');
+
+    try {
+      const result = await forceSeedDefaultCategories();
+      
+      if (result.success) {
+        alert(result.message || '✅ กู้คืนหมวดหมู่สำเร็จ!');
+        await loadCategories();
+      } else {
+        alert(`❌ เกิดข้อผิดพลาด: ${result.error}`);
+        setError(result.error || 'เกิดข้อผิดพลาดในการกู้คืนหมวดหมู่');
+      }
+    } catch (err: any) {
+      alert(`❌ เกิดข้อผิดพลาด: ${err.message}`);
+      setError(err.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
 
   if (authLoading || loading) {
     return (
@@ -294,13 +324,32 @@ export default function CategoriesPage() {
           <div className="text-sm text-gray-600">
             ทั้งหมด <span className="font-bold text-emerald-600">{categories.length}</span> หมวดหมู่
           </div>
-          <button
-            onClick={openCreateForm}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors shadow-lg shadow-emerald-500/30"
-          >
-            <Plus className="w-5 h-5" />
-            เพิ่มหมวดหมู่
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRestoreCategories}
+              disabled={restoring}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors shadow-lg shadow-blue-500/30 disabled:opacity-50"
+            >
+              {restoring ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  กำลังกู้คืน...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5" />
+                  🔄 กู้คืนหมวดหมู่เริ่มต้น
+                </>
+              )}
+            </button>
+            <button
+              onClick={openCreateForm}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors shadow-lg shadow-emerald-500/30"
+            >
+              <Plus className="w-5 h-5" />
+              เพิ่มหมวดหมู่
+            </button>
+          </div>
         </div>
 
         {/* Categories List */}

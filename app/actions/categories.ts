@@ -448,7 +448,30 @@ export async function seedDefaultCategories(): Promise<{ success: boolean; error
       };
     }
     
-    console.log('🌱 Seeding default work categories...');
+    return await forceSeedDefaultCategories();
+  } catch (error: any) {
+    console.error('Error seeding default categories:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to seed default categories',
+    };
+  }
+}
+
+/**
+ * FORCE SEED: Restore default categories even if collection is not empty
+ * Use this to recover deleted categories
+ * This will ADD new categories without deleting existing ones
+ */
+export async function forceSeedDefaultCategories(): Promise<{ success: boolean; error?: string; message?: string }> {
+  try {
+    console.log('🌱 Force seeding default work categories...');
+    
+    const collectionRef = getWorkCategoriesCollection();
+    
+    // Get existing categories to check for duplicates
+    const existingSnapshot = await collectionRef.get();
+    const existingNames = new Set(existingSnapshot.docs.map(doc => doc.data().name));
     
     // Define the exact seed data as specified
     const defaultCategories = [
@@ -588,10 +611,20 @@ export async function seedDefaultCategories(): Promise<{ success: boolean; error
       },
     ];
     
-    // Batch write all categories
+    // Filter out categories that already exist (by name)
+    const categoriesToAdd = defaultCategories.filter(cat => !existingNames.has(cat.name));
+    
+    if (categoriesToAdd.length === 0) {
+      return {
+        success: true,
+        message: 'หมวดหมู่เริ่มต้นทั้งหมดมีอยู่แล้ว ไม่ต้องเพิ่มใหม่',
+      };
+    }
+    
+    // Batch write new categories only
     const batch = adminDb.batch();
     
-    defaultCategories.forEach(category => {
+    categoriesToAdd.forEach(category => {
       const docRef = collectionRef.doc();
       batch.set(docRef, {
         ...category,
@@ -602,17 +635,17 @@ export async function seedDefaultCategories(): Promise<{ success: boolean; error
     
     await batch.commit();
     
-    console.log(`✅ Successfully seeded ${defaultCategories.length} default work categories`);
+    console.log(`✅ Successfully restored ${categoriesToAdd.length} default work categories`);
     
     return {
       success: true,
-      message: `Successfully seeded ${defaultCategories.length} default work categories`,
+      message: `✅ กู้คืนหมวดหมู่สำเร็จ! เพิ่ม ${categoriesToAdd.length} หมวดหมู่ (${defaultCategories.length - categoriesToAdd.length} หมวดหมู่มีอยู่แล้ว)`,
     };
   } catch (error: any) {
-    console.error('Error seeding default categories:', error);
+    console.error('Error force seeding default categories:', error);
     return {
       success: false,
-      error: error.message || 'Failed to seed default categories',
+      error: error.message || 'Failed to restore default categories',
     };
   }
 }

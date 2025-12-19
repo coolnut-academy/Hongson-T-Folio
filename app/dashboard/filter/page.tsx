@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WorkCategorySelect } from '@/components/filter/WorkCategorySelect';
 import { TimeRangeSelector } from '@/components/filter/TimeRangeSelector';
 import { FilterButton } from '@/components/filter/FilterButton';
 import { ResultsList } from '@/components/filter/ResultsList';
-import { getWorkRecordsFiltered, type WorkRecord, type FilterParams } from '@/lib/filterData';
+import { getWorkRecordsFiltered, getTeachers, type WorkRecord, type FilterParams, type Teacher } from '@/lib/filterData';
 import { useAuth } from '@/context/AuthContext';
-import { Filter, Loader2, FileDown, RefreshCw } from 'lucide-react';
+import { getWorkCategories } from '@/app/actions/categories';
+import { WorkCategory } from '@/lib/types';
+import { Filter, Loader2, FileDown, RefreshCw, Users as UsersIcon, Eye, X } from 'lucide-react';
 import AdminWorkFilterPdfDocument from '@/components/pdf/AdminWorkFilterPdfDocument';
 import { downloadPdf } from '@/lib/downloadPdf';
 import { prepareWorkRecordsForPdf } from '@/lib/pdfUtils';
@@ -17,6 +19,7 @@ type TimeRangeType = 'all' | 'year' | 'month' | 'custom';
 export default function UserWorkReportPage() {
   const { userData } = useAuth();
   const [workCategory, setWorkCategory] = useState('งานทั้งหมด');
+  const [categories, setCategories] = useState<WorkCategory[]>([]);
   const [timeRangeType, setTimeRangeType] = useState<TimeRangeType>('all');
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
@@ -24,13 +27,33 @@ export default function UserWorkReportPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [forceRefresh, setForceRefresh] = useState(true); // ⚡ Default to true for fresh data
+  const [loadingProgress, setLoadingProgress] = useState(0); // Progress percentage for loading
   
   // Store current filter state for PDF metadata
   const [currentFilters, setCurrentFilters] = useState<FilterParams>({});
 
+  // Team Leader: Filter selection (2 options only)
+  const isTeamLeader = userData?.role === 'team_leader';
+  const [filterScope, setFilterScope] = useState<'mine' | 'all'>('mine'); // 'mine' = ข้อมูลของฉัน, 'all' = ข้อมูลครูทั้งโรงเรียน
+
+  // Load categories for category name lookup
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await getWorkCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+    loadCategories();
+  }, []);
+
   // Get current teacher ID from auth
-  const teacherId = userData?.id;
+  // For team_leader: if 'mine' use userData.id, if 'all' use undefined (no filter)
+  const teacherId = isTeamLeader 
+    ? (filterScope === 'mine' ? userData?.id : undefined)
+    : userData?.id;
 
   const handleTimeRangeChange = (
     type: TimeRangeType,
@@ -43,39 +66,122 @@ export default function UserWorkReportPage() {
   };
 
   const handleFilter = async () => {
-    if (!teacherId) {
+    // For team_leader with 'all' scope, teacherId is undefined (which is OK)
+    // For regular users or team_leader with 'mine', teacherId must exist
+    if (!isTeamLeader && !teacherId) {
       alert('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
       return;
     }
 
     setLoading(true);
+    setLoadingProgress(0);
     
-    const filters: FilterParams = {
-      work_category: workCategory !== 'งานทั้งหมด' ? workCategory : undefined,
-      teacher_id: teacherId,
-      time_range: timeRangeType,
-      start_date: startDate,
-      end_date: endDate,
-    };
-
+    // Simulate progress updates
+    let progressInterval: NodeJS.Timeout | null = null;
+    
     try {
-      // ⚡ Pass forceRefresh parameter to bypass Firestore cache
-      const data = await getWorkRecordsFiltered(filters, forceRefresh);
+      progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev >= 90) return prev; // Don't go to 100% until done
+          return prev + Math.random() * 15; // Increment by 0-15%
+        });
+      }, 200);
+    
+      // Convert category ID to category name for filtering
+      // filterData.ts uses category name (data.category), not categoryId
+      let categoryName: string | undefined = undefined;
+      if (workCategory !== 'งานทั้งหมด') {
+        const selectedCategory = categories.find(cat => cat.id === workCategory);
+        categoryName = selectedCategory?.name || workCategory; // Fallback to workCategory if not found
+      }
+      
+      const filters: FilterParams = {
+        work_category: categoryName,
+        teacher_id: teacherId, // undefined for 'all' scope (team_leader only)
+        time_range: timeRangeType,
+        start_date: startDate,
+        end_date: endDate,
+      };
+
+      console.log('🔍 Filter params:', {
+        work_category: categoryName,
+        teacher_id: teacherId,
+        filterScope,
+        isTeamLeader,
+      });
+
+      // ⚡ Always use forceRefresh = true to bypass Firestore cache
+      setLoadingProgress(30);
+      const data = await getWorkRecordsFiltered(filters, true);
+      setLoadingProgress(100);
+      console.log('📊 Filtered results count:', data.length);
       setResults(data);
       setHasSearched(true);
       setCurrentFilters(filters); // Store filters for PDF metadata
       
-      if (forceRefresh) {
-        console.log('✅ ดึงข้อมูลล่าสุดจาก Server สำเร็จ (bypass cache)');
-      }
+      console.log('✅ ดึงข้อมูลล่าสุดจาก Server สำเร็จ (bypass cache)');
     } catch (error) {
       console.error('Error fetching work records:', error);
       alert('เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาลองใหม่อีกครั้ง');
     } finally {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      setLoadingProgress(0);
       setLoading(false);
     }
   };
 
+
+  // PDF Preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+
+  // Generate PDF preview
+  const handlePreviewPDF = async () => {
+    if (results.length === 0) {
+      alert('ไม่มีข้อมูลสำหรับสร้าง PDF');
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+
+    try {
+      const preparedResults = await prepareWorkRecordsForPdf(results);
+      const isAllTeachers = isTeamLeader && filterScope === 'all';
+      
+      const filterMeta = {
+        workCategory: currentFilters.work_category || workCategory !== 'งานทั้งหมด' ? workCategory : undefined,
+        teacherName: isAllTeachers 
+          ? 'ผลงานครูทั้งหมด' 
+          : (preparedResults[0]?.teacher_name || userData?.name || 'ไม่ระบุ'),
+        subjectGroup: isAllTeachers 
+          ? 'ทุกกลุ่มสาระ' 
+          : (preparedResults[0]?.subject_group || 'ไม่ระบุกลุ่มสาระ'),
+        timeRange: timeRangeType !== 'all' ? timeRangeType : undefined,
+        isAllTeachers: isAllTeachers,
+      };
+
+      const pdfDocument = (
+        <AdminWorkFilterPdfDocument 
+          results={preparedResults} 
+          filterMeta={filterMeta}
+        />
+      );
+
+      // Generate PDF blob for preview
+      const { pdf } = await import('@react-pdf/renderer');
+      const blob = await pdf(pdfDocument).toBlob();
+      const url = URL.createObjectURL(blob);
+      setPdfPreviewUrl(url);
+      setShowPdfPreview(true);
+    } catch (error) {
+      console.error('Error generating PDF preview:', error);
+      alert('เกิดข้อผิดพลาดในการสร้าง PDF preview');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   // Save as PDF using React-PDF
   const handleSavePDF = async () => {
@@ -89,11 +195,18 @@ export default function UserWorkReportPage() {
       const preparedResults = await prepareWorkRecordsForPdf(results);
 
       // Build filter metadata for PDF
+      const isAllTeachers = isTeamLeader && filterScope === 'all';
+      
       const filterMeta = {
         workCategory: currentFilters.work_category || workCategory !== 'งานทั้งหมด' ? workCategory : undefined,
-        teacherName: preparedResults[0]?.teacher_name, // Use first result's teacher (current user)
-        subjectGroup: preparedResults[0]?.subject_group, // Use first result's subject group
+        teacherName: isAllTeachers 
+          ? 'ผลงานครูทั้งหมด' 
+          : (preparedResults[0]?.teacher_name || userData?.name || 'ไม่ระบุ'),
+        subjectGroup: isAllTeachers 
+          ? 'ทุกกลุ่มสาระ' 
+          : (preparedResults[0]?.subject_group || 'ไม่ระบุกลุ่มสาระ'),
         timeRange: timeRangeType !== 'all' ? timeRangeType : undefined,
+        isAllTeachers: isAllTeachers, // Flag for PDF header
       };
 
       // Create PDF document with prepared results (images as data URLs)
@@ -105,7 +218,9 @@ export default function UserWorkReportPage() {
       );
 
       // Generate filename
-      const filename = `รายงานผลงานของฉัน_${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = isAllTeachers
+        ? `รายงานผลงานครูทั้งหมด_${new Date().toISOString().split('T')[0]}.pdf`
+        : `รายงานผลงาน_${userData?.name || 'ฉัน'}_${new Date().toISOString().split('T')[0]}.pdf`;
 
       // Download PDF
       await downloadPdf(pdfDocument, filename);
@@ -262,11 +377,15 @@ export default function UserWorkReportPage() {
               <Filter className="w-5 h-5" />
             </div>
             <h1 className="text-2xl font-bold text-stone-800">
-              รายงานผลงานของฉัน
+              {isTeamLeader && filterScope === 'all'
+                ? 'รายงานผลงานครูทั้งหมด'
+                : 'รายงานผลงานของฉัน'}
             </h1>
           </div>
           <p className="text-stone-500 text-sm">
-            คัดกรองและสรุปผลงานของคุณตามหมวดงานและช่วงเวลา
+            {isTeamLeader && filterScope === 'all'
+              ? 'คัดกรองและสรุปผลงานของครูทั้งโรงเรียนตามหมวดงานและช่วงเวลา'
+              : 'คัดกรองและสรุปผลงานของคุณตามหมวดงานและช่วงเวลา'}
           </p>
         </div>
 
@@ -278,6 +397,29 @@ export default function UserWorkReportPage() {
           </h2>
           
           <div className="space-y-4 sm:space-y-6">
+            {/* Team Leader: Filter Scope Selection */}
+            {isTeamLeader && (
+              <div>
+                <label className="block text-sm font-semibold text-stone-700 mb-2 flex items-center gap-2">
+                  <UsersIcon className="w-4 h-4 text-emerald-600" />
+                  ขอบเขตข้อมูล
+                </label>
+                <select
+                  value={filterScope}
+                  onChange={(e) => setFilterScope(e.target.value as 'mine' | 'all')}
+                  className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                >
+                  <option value="mine">📊 ข้อมูลของฉัน</option>
+                  <option value="all">🏫 ข้อมูลครูทั้งโรงเรียน</option>
+                </select>
+                {filterScope === 'all' && (
+                  <p className="mt-2 text-xs text-blue-600 font-medium">
+                    🔍 กำลังดูข้อมูลของครูทั้งโรงเรียน
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Work Category */}
             <WorkCategorySelect
               value={workCategory}
@@ -287,27 +429,26 @@ export default function UserWorkReportPage() {
             {/* Time Range */}
             <TimeRangeSelector onTimeRangeChange={handleTimeRangeChange} />
 
-            {/* Force Refresh Option */}
-            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center h-6">
-                <input
-                  type="checkbox"
-                  id="forceRefresh"
-                  checked={forceRefresh}
-                  onChange={(e) => setForceRefresh(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                />
-              </div>
-              <div className="flex-1">
-                <label htmlFor="forceRefresh" className="flex items-center gap-2 text-sm font-medium text-blue-900 cursor-pointer">
-                  <RefreshCw className="w-4 h-4" />
-                  ดึงข้อมูลล่าสุดจาก Server
-                </label>
-                <p className="text-xs text-blue-700 mt-1">
-                  แนะนำให้เปิดเสมอ เพื่อให้แน่ใจว่าได้ข้อมูลล่าสุด (ไม่ใช้ cache)
+            {/* Loading Progress Indicator */}
+            {loading && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3 mb-2">
+                  <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+                  <span className="text-sm font-medium text-blue-900">
+                    กำลังดึงข้อมูลล่าสุดจาก Server...
+                  </span>
+                </div>
+                <div className="w-full bg-blue-200 rounded-full h-2.5 mb-1">
+                  <div
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min(loadingProgress, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-blue-700 text-right">
+                  {Math.round(Math.min(loadingProgress, 100))}%
                 </p>
               </div>
-            </div>
+            )}
 
             {/* Filter Button */}
             <div className="pt-3 sm:pt-4 border-t border-stone-100">
@@ -325,6 +466,28 @@ export default function UserWorkReportPage() {
                 ผลการค้นหา
               </h2>
               <div className="flex items-center gap-2 sm:gap-3">
+                {/* Preview PDF Button */}
+                <button
+                  onClick={handlePreviewPDF}
+                  disabled={isGeneratingPDF}
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px] text-sm sm:text-base"
+                  title="ดูตัวอย่าง PDF"
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="hidden sm:inline">กำลังสร้าง...</span>
+                      <span className="sm:hidden">กำลังสร้าง...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      <span className="hidden sm:inline">ดูตัวอย่าง PDF</span>
+                      <span className="sm:hidden">Preview</span>
+                    </>
+                  )}
+                </button>
+                
                 {/* Save as PDF Button */}
                 <button
                   onClick={handleSavePDF}
@@ -376,11 +539,54 @@ export default function UserWorkReportPage() {
               ยังไม่มีการค้นหา
             </h3>
             <p className="text-stone-500 text-sm">
-              เลือกหมวดงานและช่วงเวลาที่ต้องการ จากนั้นกดปุ่ม คัดกรองข้อมูล เพื่อดูรายงานผลงานของคุณ
+              {isTeamLeader
+                ? 'เลือกขอบเขตข้อมูล หมวดงานและช่วงเวลาที่ต้องการ จากนั้นกดปุ่ม คัดกรองข้อมูล เพื่อดูรายงานผลงาน'
+                : 'เลือกหมวดงานและช่วงเวลาที่ต้องการ จากนั้นกดปุ่ม คัดกรองข้อมูล เพื่อดูรายงานผลงานของคุณ'}
             </p>
           </div>
         )}
       </div>
+
+      {/* PDF Preview Modal */}
+      {showPdfPreview && pdfPreviewUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">ตัวอย่าง PDF</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSavePDF}
+                  disabled={isGeneratingPDF}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <FileDown className="w-4 h-4" />
+                  บันทึก PDF
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPdfPreview(false);
+                    if (pdfPreviewUrl) {
+                      URL.revokeObjectURL(pdfPreviewUrl);
+                      setPdfPreviewUrl(null);
+                    }
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  ปิด
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={pdfPreviewUrl}
+                className="w-full h-full border-0"
+                title="PDF Preview"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -132,14 +132,22 @@ export async function getWorkRecordsFiltered(filters: FilterParams, forceRefresh
     // Apply filters
     let results = allEntries;
     
+    console.log('📋 Total entries before filtering:', allEntries.length);
+    
     // Filter by work category
     if (filters.work_category && filters.work_category !== 'งานทั้งหมด') {
+      const beforeCount = results.length;
       results = results.filter(r => r.work_category === filters.work_category);
+      console.log(`📂 Filtered by category "${filters.work_category}": ${beforeCount} → ${results.length}`);
     }
     
     // Filter by teacher
     if (filters.teacher_id) {
+      const beforeCount = results.length;
       results = results.filter(r => r.teacher_id === filters.teacher_id);
+      console.log(`👤 Filtered by teacher_id "${filters.teacher_id}": ${beforeCount} → ${results.length}`);
+    } else {
+      console.log('👥 No teacher filter applied (showing all teachers)');
     }
     
     // Filter by subject group (only if no specific teacher selected)

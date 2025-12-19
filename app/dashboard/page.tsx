@@ -5,10 +5,10 @@ import { useAuth } from '@/context/AuthContext';
 import { collection, onSnapshot, Timestamp, doc, deleteDoc, query, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getEntriesCollection, getApprovalsCollection, getApprovalDocId, getUsersCollection } from '@/lib/constants';
-import { CheckCircle, Calendar, Image as ImageIcon, Filter, Clock, AlertCircle, ChevronRight, Trash2, Edit, MoreVertical, Users as UsersIcon } from 'lucide-react';
+import { CheckCircle, Calendar, Image as ImageIcon, Filter, Clock, AlertCircle, ChevronRight, Trash2, Edit, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Entry as EntryType, WorkCategory, UserData } from '@/lib/types';
+import { Entry as EntryType, WorkCategory } from '@/lib/types';
 import { getWorkCategories } from '@/app/actions/categories';
 import { getCategoryName } from '@/lib/category-helpers';
 
@@ -66,13 +66,8 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<WorkCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   
-  // Team Leader: Users list for filtering
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  
   // Filters
   const [filterCategory, setFilterCategory] = useState('All');
-  const [filterUser, setFilterUser] = useState<string>('All'); // NEW: For team_leader to filter by user
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
   
@@ -84,9 +79,6 @@ export default function DashboardPage() {
   
   // Actions menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  
-  // Check if user is team leader
-  const isTeamLeader = userData?.role === 'team_leader';
 
   // Load categories
   useEffect(() => {
@@ -103,57 +95,24 @@ export default function DashboardPage() {
     loadCategories();
   }, []);
 
-  // Load users (for team_leader filter)
-  useEffect(() => {
-    if (!userData || !isTeamLeader) return;
-    
-    const loadUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const usersPath = getUsersCollection().split('/');
-        const usersRef = collection(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], usersPath[4]);
-        const q = query(usersRef);
-        const snapshot = await getDocs(q);
-        
-        const usersData: UserData[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          // Only show regular users (not admins)
-          if (data.role === 'user' || data.role === 'team_leader') {
-            usersData.push({ id: doc.id, ...data } as UserData);
-          }
-        });
-        
-        // Sort by name
-        usersData.sort((a, b) => a.name.localeCompare(b.name, 'th'));
-        setUsers(usersData);
-      } catch (error) {
-        console.error('Error loading users:', error);
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
-    
-    loadUsers();
-  }, [userData, isTeamLeader]);
 
   // --- Logic (Preserved) ---
 
   const monthlyStatus = useMemo(() => {
     if (!userData) return [];
     
-    // Team Leader: Show status for selected user, or own if "All" is selected
-    const targetUserId = (isTeamLeader && filterUser !== 'All') ? filterUser : userData.id;
+    // Always show status for current user (both regular user and team_leader)
+    const userId = userData.id;
     const year = selectedYear;
     const month = selectedMonth;
     const mm = String(month).padStart(2, '0');
-    const key = `${targetUserId}_${year}-${mm}`;
+    const key = `${userId}_${year}-${mm}`;
     
     const workCount = entries.filter((e) => {
       const eDate = new Date(e.dateStart);
       const matchMonth = eDate.getFullYear() === year && eDate.getMonth() + 1 === month;
-      // Count entries for the target user (or all if team_leader viewing "All")
-      const matchUser = (isTeamLeader && filterUser !== 'All') ? e.userId === targetUserId : e.userId === userData.id;
+      // Always count only own entries
+      const matchUser = e.userId === userId;
       return matchMonth && matchUser;
     }).length;
 
@@ -169,7 +128,7 @@ export default function DashboardPage() {
       entryCount: workCount,
       key: key,
     }];
-  }, [userData, approvals, entries, selectedYear, selectedMonth, isTeamLeader, filterUser]);
+  }, [userData, approvals, entries, selectedYear, selectedMonth]);
 
   useEffect(() => {
     if (!userData) return;
@@ -183,9 +142,8 @@ export default function DashboardPage() {
       snapshot.forEach((doc) => {
         const data = doc.data();
         
-        // Team Leader: See all entries
-        // Regular User: See only their own entries
-        if (isTeamLeader || data.userId === userId) {
+        // Always show only own entries (both regular user and team_leader)
+        if (data.userId === userId) {
           entriesData.push({ id: doc.id, ...data } as Entry);
         }
       });
@@ -206,9 +164,8 @@ export default function DashboardPage() {
     const unsubscribeApprovals = onSnapshot(approvalsRef, (snapshot) => {
       const approvalsMap: Record<string, { deputy: boolean; director: boolean }> = {};
       snapshot.forEach((doc) => {
-        // Team Leader: See all approvals
-        // Regular User: See only their own approvals
-        if (isTeamLeader || doc.id.startsWith(userId)) {
+        // Always show only own approvals (both regular user and team_leader)
+        if (doc.id.startsWith(userId)) {
           approvalsMap[doc.id] = doc.data() as { deputy: boolean; director: boolean };
         }
       });
@@ -219,7 +176,7 @@ export default function DashboardPage() {
       unsubscribeEntries();
       unsubscribeApprovals();
     };
-  }, [userData, isTeamLeader]);
+  }, [userData]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -251,12 +208,6 @@ export default function DashboardPage() {
       }
     }
     
-    // Team Leader: Filter by user
-    let matchUser = true;
-    if (isTeamLeader && filterUser !== 'All') {
-      matchUser = entry.userId === filterUser;
-    }
-    
     // Optional date range filter (if user sets it)
     let matchDate = true;
     if (filterDateStart && filterDateEnd) {
@@ -265,7 +216,7 @@ export default function DashboardPage() {
       matchDate = entryDate >= start && entryDate <= end;
     }
     
-    return matchMonth && matchCat && matchUser && matchDate;
+    return matchMonth && matchCat && matchDate;
   });
 
   // --- Actions Handlers ---
@@ -504,40 +455,6 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4"
               >
-                {/* Team Leader: User Filter */}
-                {isTeamLeader && (
-                  <div className="w-full">
-                    <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                      <UsersIcon className="w-3 h-3" /> ครู
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={filterUser}
-                        onChange={(e) => setFilterUser(e.target.value)}
-                        disabled={loadingUsers}
-                        className="w-full pl-4 pr-10 py-2.5 sm:py-3 bg-blue-50 border border-blue-200 rounded-lg sm:rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none appearance-none transition-all cursor-pointer min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                      >
-                        <option value="All">📊 ทุกคน</option>
-                        {loadingUsers ? (
-                          <option disabled>กำลังโหลด...</option>
-                        ) : (
-                          users.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.name} - {user.department}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
-                    </div>
-                    {filterUser !== 'All' && (
-                      <p className="mt-2 text-xs text-blue-600 font-medium">
-                        🔍 กำลังดูข้อมูลของ {users.find(u => u.id === filterUser)?.name}
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {/* Category Filter */}
                 <div className="w-full">
                   <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">

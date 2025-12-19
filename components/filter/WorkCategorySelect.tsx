@@ -43,11 +43,14 @@ export function WorkCategorySelect({ value, onChange }: WorkCategorySelectProps)
         {loading ? (
           <option>กำลังโหลด...</option>
         ) : (
-          categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))
+          <>
+            <option value="งานทั้งหมด">งานทั้งหมด</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </>
         )}
       </select>
     </div>

@@ -37,6 +37,7 @@ interface AdminWorkFilterPdfDocumentProps {
     teacherName?: string;
     subjectGroup?: string;
     timeRange?: string;
+    isAllTeachers?: boolean; // Flag to show "ผลงานครูทั้งหมด" in header
   };
 }
 
@@ -263,7 +264,11 @@ const normalizeImageUrl = (url: string | undefined): string | null => {
 
 const AdminWorkFilterPdfDocument = ({
   results,
-}: AdminWorkFilterPdfDocumentProps) => (
+  filterMeta,
+}: AdminWorkFilterPdfDocumentProps) => {
+  const isAllTeachers = filterMeta?.isAllTeachers || false;
+  
+  return (
   <Document>
     {results.map((work, index) => (
       <Page key={work.id} size="A4" style={styles.page}>
@@ -288,10 +293,23 @@ const AdminWorkFilterPdfDocument = ({
             </View>
           </View>
           <View style={styles.headerRight}>
-            <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
-            <Text style={styles.metaValue}>{work.teacher_name}</Text>
-            <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
-            <Text style={styles.metaValue}>{work.subject_group}</Text>
+            {isAllTeachers ? (
+              <>
+                <Text style={styles.metaLabel}>รายงาน:</Text>
+                <Text style={styles.metaValue}>ผลงานครูทั้งหมด</Text>
+                <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
+                <Text style={styles.metaValue}>{work.teacher_name}</Text>
+                <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
+                <Text style={styles.metaValue}>{work.subject_group}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
+                <Text style={styles.metaValue}>{work.teacher_name}</Text>
+                <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
+                <Text style={styles.metaValue}>{work.subject_group}</Text>
+              </>
+            )}
             <Text style={styles.metaLabel}>วันที่จัดกิจกรรม:</Text>
             <Text style={styles.metaValue}>{formatDate(work.created_at)}</Text>
           </View>
@@ -361,7 +379,8 @@ const AdminWorkFilterPdfDocument = ({
       </Page>
     ))}
   </Document>
-);
+  );
+};
 
 export default AdminWorkFilterPdfDocument;
 
