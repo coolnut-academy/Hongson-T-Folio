@@ -515,6 +515,19 @@ export async function seedDefaultCategories(): Promise<{ success: boolean; error
  */
 export async function forceSeedDefaultCategories(): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
+    // Check if Firebase Admin is properly initialized
+    if (!isFirebaseAdminInitialized()) {
+      const errorMsg = 'Firebase Admin SDK is not properly initialized. Please check your environment variables:\n' +
+        '- FIREBASE_PROJECT_ID\n' +
+        '- FIREBASE_CLIENT_EMAIL\n' +
+        '- FIREBASE_PRIVATE_KEY (must be properly formatted with \\n for newlines)';
+      console.error('[forceSeedDefaultCategories] ❌', errorMsg);
+      return {
+        success: false,
+        error: errorMsg,
+      };
+    }
+    
     console.log('🌱 Force seeding default work categories...');
     
     const collectionRef = getWorkCategoriesCollection();
@@ -692,10 +705,31 @@ export async function forceSeedDefaultCategories(): Promise<{ success: boolean; 
       message: `✅ กู้คืนหมวดหมู่สำเร็จ! เพิ่ม ${categoriesToAdd.length} หมวดหมู่ (${defaultCategories.length - categoriesToAdd.length} หมวดหมู่มีอยู่แล้ว)`,
     };
   } catch (error: any) {
-    console.error('Error force seeding default categories:', error);
+    console.error('[forceSeedDefaultCategories] ❌ Error:', error);
+    console.error('[forceSeedDefaultCategories] Error message:', error.message);
+    console.error('[forceSeedDefaultCategories] Error code:', error.code);
+    
+    // Check for specific Firebase Admin errors
+    let errorMessage = error.message || 'Failed to restore default categories';
+    
+    if (error.message?.includes('DECODER') || error.message?.includes('unsupported')) {
+      errorMessage = 'ข้อผิดพลาดในการ decode Private Key:\n\n' +
+        'กรุณาตรวจสอบ FIREBASE_PRIVATE_KEY ใน Vercel Environment Variables:\n' +
+        '1. ต้องมี BEGIN และ END markers\n' +
+        '2. ต้อง escape newlines เป็น \\n\n' +
+        '3. ต้อง copy ทั้งหมดรวม BEGIN และ END lines\n\n' +
+        'ตัวอย่าง: "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"';
+    } else if (error.code === 7 || error.message?.includes('PERMISSION_DENIED')) {
+      errorMessage = 'ไม่มีสิทธิ์เข้าถึง Firestore:\n\n' +
+        'กรุณาตรวจสอบว่า Firebase Admin credentials ถูกต้องและมีสิทธิ์เข้าถึง Firestore';
+    } else if (error.code === 16 || error.message?.includes('UNAUTHENTICATED')) {
+      errorMessage = 'การยืนยันตัวตนล้มเหลว:\n\n' +
+        'กรุณาตรวจสอบ FIREBASE_CLIENT_EMAIL และ FIREBASE_PRIVATE_KEY';
+    }
+    
     return {
       success: false,
-      error: error.message || 'Failed to restore default categories',
+      error: errorMessage,
     };
   }
 }
