@@ -1,9 +1,5 @@
 'use server';
 
-// Force Node.js runtime to ensure compatibility with firebase-admin
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
 import { adminDb, isFirebaseAdminInitialized } from '@/lib/firebase-admin';
 import { WorkCategory, WorkCategoryConfig } from '@/lib/types';
 
