@@ -1,5 +1,9 @@
 'use server';
 
+// Force Node.js runtime to ensure compatibility with firebase-admin
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import { adminDb, isFirebaseAdminInitialized } from '@/lib/firebase-admin';
 import { WorkCategory, WorkCategoryConfig } from '@/lib/types';
 
@@ -24,14 +28,37 @@ function getWorkCategoriesCollection() {
  */
 function serializeCategory(doc: any): WorkCategory {
   const data = doc.data();
+
+  // Safe timestamp conversion helper
+  const toIsoName = (timestamp: any) => {
+    if (!timestamp) return undefined;
+    if (typeof timestamp.toDate === 'function') {
+      try {
+        return timestamp.toDate().toISOString();
+      } catch (e) {
+        console.warn(`[serializeCategory] Failed to convert timestamp for doc ${doc.id}:`, e);
+        return undefined;
+      }
+    }
+    // Handle string or number timestamps if applicable
+    if (typeof timestamp === 'string') return timestamp;
+    if (typeof timestamp === 'number') return new Date(timestamp).toISOString();
+    return undefined;
+  };
+
   return {
     id: doc.id,
-    name: data.name,
-    order: data.order,
-    config: data.config,
-    // Convert Firestore Timestamps to ISO strings for client compatibility
-    ...(data.createdAt && { createdAt: data.createdAt.toDate().toISOString() }),
-    ...(data.updatedAt && { updatedAt: data.updatedAt.toDate().toISOString() }),
+    name: data.name || 'Unnamed Category',
+    order: typeof data.order === 'number' ? data.order : 0,
+    config: data.config || {
+      formConfig: {
+        titleLabel: 'Title',
+        organizationLabel: 'Organization'
+      }
+    },
+    // Convert Firestore Timestamps to ISO strings safely
+    ...(data.createdAt && { createdAt: toIsoName(data.createdAt) }),
+    ...(data.updatedAt && { updatedAt: toIsoName(data.updatedAt) }),
   } as any;
 }
 
@@ -49,33 +76,33 @@ export async function getWorkCategories(): Promise<WorkCategory[]> {
       console.error('[getWorkCategories] - FIREBASE_PROJECT_ID');
       console.error('[getWorkCategories] - FIREBASE_CLIENT_EMAIL');
       console.error('[getWorkCategories] - FIREBASE_PRIVATE_KEY');
-      
+
       // Return empty array instead of throwing to prevent UI crash
       // But log the error so it's visible in production logs
       return [];
     }
-    
+
     const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio';
     const collectionPath = `artifacts/${APP_ID}/public/data/work_categories`;
-    
+
     // Log for debugging (only in production to help diagnose issues)
     if (process.env.NODE_ENV === 'production') {
       console.log('[getWorkCategories] APP_ID:', APP_ID);
       console.log('[getWorkCategories] Collection path:', collectionPath);
     }
-    
+
     const collectionRef = getWorkCategoriesCollection();
     const snapshot = await collectionRef
       .orderBy('order', 'asc')
       .get();
-    
+
     const categories = snapshot.docs.map(doc => serializeCategory(doc));
-    
+
     // Log result count for debugging
     if (process.env.NODE_ENV === 'production') {
       console.log(`[getWorkCategories] Found ${categories.length} categories`);
     }
-    
+
     // If no categories found, log warning
     if (categories.length === 0) {
       console.warn('[getWorkCategories] ⚠️ No categories found in collection. Collection might be empty or path is incorrect.');
@@ -83,19 +110,19 @@ export async function getWorkCategories(): Promise<WorkCategory[]> {
       console.warn('[getWorkCategories] APP_ID:', APP_ID);
       console.warn('[getWorkCategories] Check Firestore console to verify categories exist at this path.');
     }
-    
+
     return categories;
   } catch (error: any) {
     const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio';
     const collectionPath = `artifacts/${APP_ID}/public/data/work_categories`;
-    
+
     console.error('[getWorkCategories] ❌ Error fetching work categories:');
     console.error('[getWorkCategories] Error message:', error.message);
     console.error('[getWorkCategories] Error code:', error.code);
     console.error('[getWorkCategories] Collection path:', collectionPath);
     console.error('[getWorkCategories] APP_ID:', APP_ID);
     console.error('[getWorkCategories] Stack trace:', error.stack);
-    
+
     // Return empty array instead of throwing to prevent UI crash
     // This allows the app to continue functioning even if categories fail to load
     return [];
@@ -108,14 +135,22 @@ export async function getWorkCategories(): Promise<WorkCategory[]> {
  */
 export async function getAllWorkCategoriesAdmin(): Promise<WorkCategory[]> {
   try {
+    // Safety check for initialization
+    if (!isFirebaseAdminInitialized()) {
+      console.error('[getAllWorkCategoriesAdmin] Firebase Admin not initialized');
+      // Return empty array to allow UI to render (with empty state) instead of 500
+      return [];
+    }
+
     const snapshot = await getWorkCategoriesCollection()
       .orderBy('order', 'asc')
       .get();
-    
+
     return snapshot.docs.map(doc => serializeCategory(doc));
   } catch (error: any) {
     console.error('Error fetching work categories (admin):', error);
-    throw new Error(`Failed to fetch work categories: ${error.message}`);
+    // Don't throw, return empty to prevent 500
+    return [];
   }
 }
 
@@ -127,26 +162,26 @@ export async function saveWorkCategory(
 ): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
     const collectionRef = getWorkCategoriesCollection();
-    
+
     if (category.id) {
       // Update existing category
       const docRef = collectionRef.doc(category.id);
       const docSnap = await docRef.get();
-      
+
       if (!docSnap.exists) {
         return {
           success: false,
           error: 'ไม่พบหมวดหมู่ที่ต้องการแก้ไข',
         };
       }
-      
+
       await docRef.update({
         name: category.name,
         config: category.config,
         order: category.order ?? docSnap.data()?.order ?? 0,
         updatedAt: new Date(),
       });
-      
+
       return { success: true, id: category.id };
     } else {
       // Create new category
@@ -155,7 +190,7 @@ export async function saveWorkCategory(
         const order = doc.data().order ?? 0;
         return order > max ? order : max;
       }, 0);
-      
+
       const newDocRef = collectionRef.doc();
       await newDocRef.set({
         name: category.name,
@@ -164,7 +199,7 @@ export async function saveWorkCategory(
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      
+
       return { success: true, id: newDocRef.id };
     }
   } catch (error: any) {
@@ -193,11 +228,11 @@ export async function checkCategoryUsage(categoryId: string): Promise<{
       .collection(parts[2])
       .doc(parts[3])
       .collection(parts[4]);
-    
+
     const snapshot = await entriesRef
       .where('categoryId', '==', categoryId)
       .get();
-    
+
     return {
       success: true,
       count: snapshot.size,
@@ -230,7 +265,7 @@ export async function migrateCategoryEntries(
         error: 'หมวดหมู่ปลายทางไม่มีอยู่',
       };
     }
-    
+
     // 2. Get entries to migrate
     const entriesPath = `artifacts/${process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio'}/public/data/entries`;
     const parts = entriesPath.split('/');
@@ -240,48 +275,48 @@ export async function migrateCategoryEntries(
       .collection(parts[2])
       .doc(parts[3])
       .collection(parts[4]);
-    
+
     const snapshot = await entriesRef
       .where('categoryId', '==', fromCategoryId)
       .get();
-    
+
     if (snapshot.empty) {
       return {
         success: true,
         migrated: 0,
       };
     }
-    
+
     // 3. Batch update entries
     const toCategoryData = toCategory.data();
     const batches: FirebaseFirestore.WriteBatch[] = [adminDb.batch()];
     let currentBatch = 0;
     let operationsInBatch = 0;
     let totalMigrated = 0;
-    
+
     for (const doc of snapshot.docs) {
       if (operationsInBatch >= 500) {
         batches.push(adminDb.batch());
         currentBatch++;
         operationsInBatch = 0;
       }
-      
+
       batches[currentBatch].update(doc.ref, {
         categoryId: toCategoryId,
         category: toCategoryData?.name || '', // Update name for backward compatibility
         migratedAt: new Date(),
         migratedFrom: fromCategoryId,
       });
-      
+
       operationsInBatch++;
       totalMigrated++;
     }
-    
+
     // 4. Commit all batches
     for (const batch of batches) {
       await batch.commit();
     }
-    
+
     return {
       success: true,
       migrated: totalMigrated,
@@ -304,24 +339,24 @@ export async function deleteWorkCategory(categoryId: string): Promise<{ success:
   try {
     const docRef = getWorkCategoriesCollection().doc(categoryId);
     const docSnap = await docRef.get();
-    
+
     if (!docSnap.exists) {
       return {
         success: false,
         error: 'ไม่พบหมวดหมู่ที่ต้องการลบ',
       };
     }
-    
+
     // ✅ Check if category is being used
     const usage = await checkCategoryUsage(categoryId);
-    
+
     if (!usage.success) {
       return {
         success: false,
         error: 'ไม่สามารถตรวจสอบการใช้งานหมวดหมู่ได้',
       };
     }
-    
+
     if (usage.count > 0) {
       return {
         success: false,
@@ -329,7 +364,7 @@ export async function deleteWorkCategory(categoryId: string): Promise<{ success:
         entriesCount: usage.count,
       };
     }
-    
+
     // ✅ Safe to delete (no entries using this category)
     await docRef.delete();
     return { success: true };
@@ -350,12 +385,12 @@ export async function reorderCategories(categoryIds: string[]): Promise<{ succes
   try {
     const collectionRef = getWorkCategoriesCollection();
     const batch = adminDb.batch();
-    
+
     categoryIds.forEach((id, index) => {
       const docRef = collectionRef.doc(id);
       batch.update(docRef, { order: index });
     });
-    
+
     await batch.commit();
     return { success: true };
   } catch (error: any) {
@@ -375,18 +410,18 @@ export async function getEntriesCountByCategory(categoryId: string): Promise<num
     const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio';
     const ENTRIES_COLLECTION = `artifacts/${APP_ID}/public/data/entries`;
     const parts = ENTRIES_COLLECTION.split('/');
-    
+
     const entriesRef = adminDb
       .collection(parts[0])
       .doc(parts[1])
       .collection(parts[2])
       .doc(parts[3])
       .collection(parts[4]);
-    
+
     const snapshot = await entriesRef
       .where('categoryId', '==', categoryId)
       .get();
-    
+
     return snapshot.size;
   } catch (error) {
     console.error('Error counting entries:', error);
@@ -411,62 +446,62 @@ export async function moveEntriesToCategory(
         error: 'ไม่พบหมวดหมู่ปลายทาง',
       };
     }
-    
+
     const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio';
     const ENTRIES_COLLECTION = `artifacts/${APP_ID}/public/data/entries`;
     const parts = ENTRIES_COLLECTION.split('/');
-    
+
     const entriesRef = adminDb
       .collection(parts[0])
       .doc(parts[1])
       .collection(parts[2])
       .doc(parts[3])
       .collection(parts[4]);
-    
+
     // Get all entries with fromCategoryId
     const snapshot = await entriesRef
       .where('categoryId', '==', fromCategoryId)
       .get();
-    
+
     if (snapshot.empty) {
       return {
         success: true,
         movedCount: 0,
       };
     }
-    
+
     // Move entries in batches (500 per batch)
     const batches: FirebaseFirestore.WriteBatch[] = [adminDb.batch()];
     let currentBatch = 0;
     let operationsInBatch = 0;
     let movedCount = 0;
-    
+
     const toCategoryData = toCategory.data();
     const toCategoryName = toCategoryData?.name || '';
-    
+
     for (const doc of snapshot.docs) {
       if (operationsInBatch >= 500) {
         batches.push(adminDb.batch());
         currentBatch++;
         operationsInBatch = 0;
       }
-      
+
       batches[currentBatch].update(doc.ref, {
         categoryId: toCategoryId,
         category: toCategoryName, // Update name too for backward compatibility
         movedAt: new Date(),
         movedFrom: fromCategoryId,
       });
-      
+
       operationsInBatch++;
       movedCount++;
     }
-    
+
     // Commit all batches
     for (const batch of batches) {
       await batch.commit();
     }
-    
+
     return {
       success: true,
       movedCount,
@@ -489,7 +524,7 @@ export async function seedDefaultCategories(): Promise<{ success: boolean; error
   try {
     const collectionRef = getWorkCategoriesCollection();
     const snapshot = await collectionRef.get();
-    
+
     // Check if collection is empty
     if (!snapshot.empty) {
       return {
@@ -497,7 +532,7 @@ export async function seedDefaultCategories(): Promise<{ success: boolean; error
         message: 'Categories already exist. No seeding required.',
       };
     }
-    
+
     return await forceSeedDefaultCategories();
   } catch (error: any) {
     console.error('Error seeding default categories:', error);
@@ -527,15 +562,15 @@ export async function forceSeedDefaultCategories(): Promise<{ success: boolean; 
         error: errorMsg,
       };
     }
-    
+
     console.log('🌱 Force seeding default work categories...');
-    
+
     const collectionRef = getWorkCategoriesCollection();
-    
+
     // Get existing categories to check for duplicates
     const existingSnapshot = await collectionRef.get();
     const existingNames = new Set(existingSnapshot.docs.map(doc => doc.data().name));
-    
+
     // Define the exact seed data as specified
     const defaultCategories = [
       {
@@ -673,20 +708,20 @@ export async function forceSeedDefaultCategories(): Promise<{ success: boolean; 
         },
       },
     ];
-    
+
     // Filter out categories that already exist (by name)
     const categoriesToAdd = defaultCategories.filter(cat => !existingNames.has(cat.name));
-    
+
     if (categoriesToAdd.length === 0) {
       return {
         success: true,
         message: 'หมวดหมู่เริ่มต้นทั้งหมดมีอยู่แล้ว ไม่ต้องเพิ่มใหม่',
       };
     }
-    
+
     // Batch write new categories only
     const batch = adminDb.batch();
-    
+
     categoriesToAdd.forEach(category => {
       const docRef = collectionRef.doc();
       batch.set(docRef, {
@@ -695,11 +730,11 @@ export async function forceSeedDefaultCategories(): Promise<{ success: boolean; 
         updatedAt: new Date(),
       });
     });
-    
+
     await batch.commit();
-    
+
     console.log(`✅ Successfully restored ${categoriesToAdd.length} default work categories`);
-    
+
     return {
       success: true,
       message: `✅ กู้คืนหมวดหมู่สำเร็จ! เพิ่ม ${categoriesToAdd.length} หมวดหมู่ (${defaultCategories.length - categoriesToAdd.length} หมวดหมู่มีอยู่แล้ว)`,
@@ -708,10 +743,10 @@ export async function forceSeedDefaultCategories(): Promise<{ success: boolean; 
     console.error('[forceSeedDefaultCategories] ❌ Error:', error);
     console.error('[forceSeedDefaultCategories] Error message:', error.message);
     console.error('[forceSeedDefaultCategories] Error code:', error.code);
-    
+
     // Check for specific Firebase Admin errors
     let errorMessage = error.message || 'Failed to restore default categories';
-    
+
     if (error.message?.includes('DECODER') || error.message?.includes('unsupported')) {
       errorMessage = 'ข้อผิดพลาดในการ decode Private Key:\n\n' +
         'กรุณาตรวจสอบ FIREBASE_PRIVATE_KEY ใน Vercel Environment Variables:\n' +
@@ -726,7 +761,7 @@ export async function forceSeedDefaultCategories(): Promise<{ success: boolean; 
       errorMessage = 'การยืนยันตัวตนล้มเหลว:\n\n' +
         'กรุณาตรวจสอบ FIREBASE_CLIENT_EMAIL และ FIREBASE_PRIVATE_KEY';
     }
-    
+
     return {
       success: false,
       error: errorMessage,
