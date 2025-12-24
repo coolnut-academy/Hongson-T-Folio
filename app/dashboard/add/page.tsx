@@ -68,6 +68,7 @@ export default function AddEntryPage() {
       try {
         const data = await getWorkCategories();
         setCategories(data);
+        
         if (data.length > 0) {
           // Phase 3.5: Set categoryId instead of category name
           setFormData(prev => ({ ...prev, categoryId: data[0].id }));
@@ -81,6 +82,10 @@ export default function AddEntryPage() {
           }
           // Leave level empty (user can select later)
           // No auto-selection of first level option
+        } else {
+          // No categories found - likely configuration issue
+          console.error('⚠️ [AddEntry] No categories loaded. Check Firebase Admin configuration.');
+          setError('ไม่สามารถโหลดหมวดหมู่ได้ กรุณาตรวจสอบการตั้งค่า');
         }
       } catch (error) {
         console.error('Error loading categories:', error);

@@ -6,9 +6,6 @@ import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Lock, Loader2, ArrowRight, Sparkles, Eye, EyeOff, Code2 } from 'lucide-react';
 import Image from 'next/image';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { getUsersCollection } from '@/lib/constants';
 import { getCache, setCache, CACHE_KEYS } from '@/lib/cache-utils';
 
 function LoginPageContent() {
@@ -65,21 +62,26 @@ function LoginPageContent() {
       setCheckingSiteStatus(true);
     }
 
-    // 🔄 Background sync: Update cache with real-time data
-    const usersPath = getUsersCollection().split('/');
-    const settingsDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], 'system', 'settings');
-    
-    const unsubscribe = onSnapshot(settingsDocRef, (settingsDoc) => {
+    // 🔄 Background sync: Poll API route for site status updates
+    const checkSiteStatus = async () => {
       try {
-        const siteEnabled = settingsDoc.exists() ? (settingsDoc.data().siteEnabled !== false) : true;
+        const response = await fetch('/api/system/site-status');
+        const data = await response.json();
         
-        // Update cache (5 minutes TTL)
-        setCache(CACHE_KEYS.SITE_STATUS, siteEnabled, 5 * 60 * 1000);
-        
-        // Update UI if needed
-        if (siteEnabled === false) {
-          router.push('/maintenance');
+        if (data.success !== false) {
+          const siteEnabled = data.siteEnabled !== false;
+          
+          // Update cache (5 minutes TTL)
+          setCache(CACHE_KEYS.SITE_STATUS, siteEnabled, 5 * 60 * 1000);
+          
+          // Update UI if needed
+          if (siteEnabled === false) {
+            router.push('/maintenance');
+          } else {
+            setCheckingSiteStatus(false);
+          }
         } else {
+          // On error, allow access (fail open)
           setCheckingSiteStatus(false);
         }
       } catch (error) {
@@ -87,12 +89,15 @@ function LoginPageContent() {
         // On error, allow access (fail open)
         setCheckingSiteStatus(false);
       }
-    }, (error) => {
-      console.error('Error in site status listener:', error);
-      setCheckingSiteStatus(false);
-    });
+    };
 
-    return () => unsubscribe();
+    // Initial check
+    checkSiteStatus();
+
+    // Poll every 30 seconds for updates
+    const intervalId = setInterval(checkSiteStatus, 30000);
+
+    return () => clearInterval(intervalId);
   }, [router]);
 
   // ✅ Logic เดิม: Redirect ถ้า Login อยู่แล้ว

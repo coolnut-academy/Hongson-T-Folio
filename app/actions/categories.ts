@@ -1,6 +1,6 @@
 'use server';
 
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, isFirebaseAdminInitialized } from '@/lib/firebase-admin';
 import { WorkCategory, WorkCategoryConfig } from '@/lib/types';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio';
@@ -41,14 +41,64 @@ function serializeCategory(doc: any): WorkCategory {
  */
 export async function getWorkCategories(): Promise<WorkCategory[]> {
   try {
-    const snapshot = await getWorkCategoriesCollection()
+    // Check if Firebase Admin is properly initialized
+    if (!isFirebaseAdminInitialized()) {
+      const errorMsg = 'Firebase Admin SDK is not properly initialized. Missing credentials in production environment.';
+      console.error('[getWorkCategories] ❌', errorMsg);
+      console.error('[getWorkCategories] Please check Vercel Environment Variables:');
+      console.error('[getWorkCategories] - FIREBASE_PROJECT_ID');
+      console.error('[getWorkCategories] - FIREBASE_CLIENT_EMAIL');
+      console.error('[getWorkCategories] - FIREBASE_PRIVATE_KEY');
+      
+      // Return empty array instead of throwing to prevent UI crash
+      // But log the error so it's visible in production logs
+      return [];
+    }
+    
+    const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio';
+    const collectionPath = `artifacts/${APP_ID}/public/data/work_categories`;
+    
+    // Log for debugging (only in production to help diagnose issues)
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[getWorkCategories] APP_ID:', APP_ID);
+      console.log('[getWorkCategories] Collection path:', collectionPath);
+    }
+    
+    const collectionRef = getWorkCategoriesCollection();
+    const snapshot = await collectionRef
       .orderBy('order', 'asc')
       .get();
     
-    return snapshot.docs.map(doc => serializeCategory(doc));
+    const categories = snapshot.docs.map(doc => serializeCategory(doc));
+    
+    // Log result count for debugging
+    if (process.env.NODE_ENV === 'production') {
+      console.log(`[getWorkCategories] Found ${categories.length} categories`);
+    }
+    
+    // If no categories found, log warning
+    if (categories.length === 0) {
+      console.warn('[getWorkCategories] ⚠️ No categories found in collection. Collection might be empty or path is incorrect.');
+      console.warn('[getWorkCategories] Collection path:', collectionPath);
+      console.warn('[getWorkCategories] APP_ID:', APP_ID);
+      console.warn('[getWorkCategories] Check Firestore console to verify categories exist at this path.');
+    }
+    
+    return categories;
   } catch (error: any) {
-    console.error('Error fetching work categories:', error);
-    throw new Error(`Failed to fetch work categories: ${error.message}`);
+    const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'hongson-tfolio';
+    const collectionPath = `artifacts/${APP_ID}/public/data/work_categories`;
+    
+    console.error('[getWorkCategories] ❌ Error fetching work categories:');
+    console.error('[getWorkCategories] Error message:', error.message);
+    console.error('[getWorkCategories] Error code:', error.code);
+    console.error('[getWorkCategories] Collection path:', collectionPath);
+    console.error('[getWorkCategories] APP_ID:', APP_ID);
+    console.error('[getWorkCategories] Stack trace:', error.stack);
+    
+    // Return empty array instead of throwing to prevent UI crash
+    // This allows the app to continue functioning even if categories fail to load
+    return [];
   }
 }
 

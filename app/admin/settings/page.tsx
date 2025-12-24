@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { getUsersCollection } from '@/lib/constants';
+import { getSystemSettings, updateSystemSettings } from '@/app/actions/system-settings';
 import { Settings, Power, Globe, Lock, Loader2, CheckCircle2, XCircle, Download, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -32,17 +30,13 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     const fetchSiteStatus = async () => {
       try {
-        const usersPath = getUsersCollection().split('/');
-        const settingsDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], 'system', 'settings');
-        const settingsDoc = await getDoc(settingsDocRef);
+        const result = await getSystemSettings();
         
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
-          setSiteStatus(data.siteEnabled !== false); // Default to true if not set
+        if (result.success && result.data) {
+          setSiteStatus(result.data.siteEnabled);
         } else {
-          // Create default settings
-          await setDoc(settingsDocRef, { siteEnabled: true });
-          setSiteStatus(true);
+          console.error('Error fetching site status:', result.error);
+          setSiteStatus(true); // Default to enabled on error
         }
       } catch (error) {
         console.error('Error fetching site status:', error);
@@ -58,28 +52,35 @@ export default function AdminSettingsPage() {
   }, [authLoading, userData]);
 
   const handleToggleSite = async () => {
+    if (!userData) return;
+    
     setSaving(true);
     setMessage(null);
 
     try {
-      const usersPath = getUsersCollection().split('/');
-      const settingsDocRef = doc(db, usersPath[0], usersPath[1], usersPath[2], usersPath[3], 'system', 'settings');
       const newStatus = !siteStatus;
       
-      await setDoc(settingsDocRef, { 
+      const result = await updateSystemSettings({
         siteEnabled: newStatus,
-        updatedAt: new Date().toISOString(),
-        updatedBy: userData?.username || 'unknown'
-      }, { merge: true });
-      
-      setSiteStatus(newStatus);
-      setMessage({
-        type: 'success',
-        text: newStatus ? 'เปิดเว็บไซต์เรียบร้อยแล้ว' : 'ปิดเว็บไซต์เรียบร้อยแล้ว'
+        currentUserRole: userData.role,
+        currentUsername: userData.username,
       });
+      
+      if (result.success) {
+        setSiteStatus(newStatus);
+        setMessage({
+          type: 'success',
+          text: newStatus ? 'เปิดเว็บไซต์เรียบร้อยแล้ว' : 'ปิดเว็บไซต์เรียบร้อยแล้ว'
+        });
 
-      // Clear message after 3 seconds
-      setTimeout(() => setMessage(null), 3000);
+        // Clear message after 3 seconds
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        setMessage({
+          type: 'error',
+          text: result.error || 'เกิดข้อผิดพลาดในการอัพเดทสถานะเว็บไซต์'
+        });
+      }
     } catch (error) {
       console.error('Error updating site status:', error);
       setMessage({

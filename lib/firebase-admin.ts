@@ -11,18 +11,21 @@ const serviceAccount = {
     : undefined,
 };
 
+let isAdminInitialized = false;
+
 if (!getApps().length) {
   if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
     if (process.env.NODE_ENV === 'production') {
-      console.warn('⚠️ Firebase Admin SDK not fully initialized. Missing credentials in Vercel Environment Variables.');
-      console.warn('⚠️ Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in Vercel Dashboard.');
-      console.warn('⚠️ Some admin features will not work until credentials are set.');
+      console.error('❌ Firebase Admin SDK CRITICAL ERROR: Missing credentials in production!');
+      console.error('❌ Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in Vercel Dashboard.');
+      console.error('❌ Firestore queries will FAIL without proper credentials.');
       // Initialize with minimal config to prevent build failure
       const projectId = serviceAccount.projectId || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project';
       initializeApp({
         projectId,
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
       });
+      isAdminInitialized = false; // Mark as not properly initialized
     } else {
       console.warn('⚠️ Firebase Admin SDK not fully initialized. Missing credentials. Auth operations will fail.');
       const projectId = serviceAccount.projectId || 'demo-project-id';
@@ -30,6 +33,7 @@ if (!getApps().length) {
         projectId,
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
       });
+      isAdminInitialized = false;
     }
   } else {
     initializeApp({
@@ -38,7 +42,16 @@ if (!getApps().length) {
       storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${serviceAccount.projectId}.appspot.com`,
     });
     console.log('✅ Firebase Admin initialized successfully');
+    isAdminInitialized = true;
   }
+} else {
+  // App already initialized, check if it has credentials
+  isAdminInitialized = !!(serviceAccount.projectId && serviceAccount.clientEmail && serviceAccount.privateKey);
+}
+
+// Export a function to check if admin is properly initialized
+export function isFirebaseAdminInitialized(): boolean {
+  return isAdminInitialized;
 }
 
 export const adminAuth = getAuth();

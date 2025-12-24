@@ -19,6 +19,11 @@ export function WorkCategorySelect({ value, onChange }: WorkCategorySelectProps)
       try {
         const data = await getWorkCategories();
         setCategories(data);
+        
+        // Warn if no categories found
+        if (data.length === 0) {
+          console.error('⚠️ [WorkCategorySelect] No categories loaded. Check Firebase Admin configuration.');
+        }
       } catch (error) {
         console.error('Error loading categories:', error);
       } finally {

@@ -86,6 +86,15 @@ export default function DashboardPage() {
       try {
         const data = await getWorkCategories();
         setCategories(data);
+        
+        // Warn if no categories found (likely configuration issue in production)
+        if (data.length === 0) {
+          console.error('⚠️ [Dashboard] No categories loaded. This might indicate:');
+          console.error('1. Firebase Admin credentials missing in production');
+          console.error('2. Collection path incorrect');
+          console.error('3. Categories not seeded in Firestore');
+          console.error('Check server logs for more details.');
+        }
       } catch (error) {
         console.error('Error loading categories:', error);
       } finally {
