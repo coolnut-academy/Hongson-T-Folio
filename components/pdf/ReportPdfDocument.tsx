@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
 
   // ส่วนเนื้อหา (Content Body) - ใช้ Flex: 1 เพื่อให้ขยายเต็มพื้นที่ที่เหลือ
   contentBody: {
-    flex: 1, 
+    flex: 1,
     flexDirection: 'column',
   },
   entryTitle: {
@@ -115,9 +115,9 @@ const styles = StyleSheet.create({
   entryDesc: {
     fontSize: 12,
     lineHeight: 1.5,
-    textAlign: 'justify',
+    textAlign: 'left',
   },
-  
+
   // ส่วนรูปภาพ (Images)
   imagesContainer: {
     flex: 1, // ให้รูปภาพกินพื้นที่ที่เหลือทั้งหมดในหน้า
@@ -188,62 +188,62 @@ const ReportPdfDocument = ({
     {/* KEY CHANGE 1: Loop สร้าง <Page> สำหรับแต่ละ Entry เลย เพื่อรับประกัน 1 หน้า/1 งาน */}
     {entries.map((entry, index) => (
       <Page key={entry.id} size="A4" style={styles.page}>
-        
+
         {/* 1. HEADER: รวมทุกอย่างไว้ด้านบนสุด */}
         <View style={styles.headerContainer}>
-            {/* ใส่ Logo ตรงนี้ */}
-             <Image src="/images/logo.png" style={styles.logo} />
-             
-             <View style={styles.headerInfo}>
-                <Text style={styles.reportTitle}>{title}</Text>
-                <Text style={styles.reportSubtitle}>{subtitle || 'รายงานสรุปผลงานรายบุคคล'}</Text>
-                
-                <View style={styles.userInfoRow}>
-                    <Text style={styles.userText}>ผู้รายงาน: {user.name} {user.position ? `(${user.position})` : ''}</Text>
-                    <Text style={styles.userText}>วันที่พิมพ์: {generatedAt}</Text>
-                </View>
-             </View>
+          {/* ใส่ Logo ตรงนี้ */}
+          <Image src="/images/logo.png" style={styles.logo} />
+
+          <View style={styles.headerInfo}>
+            <Text style={styles.reportTitle}>{title}</Text>
+            <Text style={styles.reportSubtitle}>{subtitle || 'รายงานสรุปผลงานรายบุคคล'}</Text>
+
+            <View style={styles.userInfoRow}>
+              <Text style={styles.userText}>ผู้รายงาน: {user.name} {user.position ? `(${user.position})` : ''}</Text>
+              <Text style={styles.userText}>วันที่พิมพ์: {generatedAt}</Text>
+            </View>
+          </View>
         </View>
 
         {/* 2. CONTENT: พื้นที่เนื้อหาหลัก */}
         <View style={styles.contentBody}>
-            <Text style={styles.entryTitle}>{index + 1}. {entry.title}</Text>
-            
-            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                <Text style={styles.entryMetaBadge}>
-                    หมวดหมู่: {entry.category} | วันที่: {formatDateRange(entry.dateStart, entry.dateEnd)}
-                </Text>
-            </View>
+          <Text style={styles.entryTitle}>{index + 1}. {entry.title}</Text>
 
-            <View style={styles.entryDescContainer}>
-                <Text style={styles.entryDesc}>
-                    {truncateText(entry.description)}
-                </Text>
-            </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={styles.entryMetaBadge}>
+              หมวดหมู่: {entry.category} | วันที่: {formatDateRange(entry.dateStart, entry.dateEnd)}
+            </Text>
+          </View>
 
-            {/* 3. IMAGES: พื้นที่รูปภาพ (บังคับขนาด) */}
-            <View style={styles.imagesContainer}>
-                <View style={styles.imageGrid}>
-                    {/* จำกัดรูปแค่ 4-6 รูป เพื่อไม่ให้ล้นหน้าแน่นอน (ใช้ slice) */}
-                    {entry.images?.slice(0, 6).map((img, i) => (
-                        <View key={i} style={styles.imageWrapper}>
-                            <Image src={img} style={styles.image} />
-                        </View>
-                    ))}
+          <View style={styles.entryDescContainer}>
+            <Text style={styles.entryDesc}>
+              {truncateText(entry.description)}
+            </Text>
+          </View>
+
+          {/* 3. IMAGES: พื้นที่รูปภาพ (บังคับขนาด) */}
+          <View style={styles.imagesContainer}>
+            <View style={styles.imageGrid}>
+              {/* จำกัดรูปแค่ 4-6 รูป เพื่อไม่ให้ล้นหน้าแน่นอน (ใช้ slice) */}
+              {entry.images?.slice(0, 6).map((img, i) => (
+                <View key={i} style={styles.imageWrapper}>
+                  <Image src={img} style={styles.image} />
                 </View>
-                {entry.images && entry.images.length > 6 && (
-                   <Text style={{fontSize: 9, color: '#ef4444', textAlign: 'center', marginTop: 5}}>
-                       *มีรูปภาพเพิ่มเติมอีก {entry.images.length - 6} รูป ในระบบ*
-                   </Text>
-                )}
+              ))}
             </View>
+            {entry.images && entry.images.length > 6 && (
+              <Text style={{ fontSize: 9, color: '#ef4444', textAlign: 'center', marginTop: 5 }}>
+                *มีรูปภาพเพิ่มเติมอีก {entry.images.length - 6} รูป ในระบบ*
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* 4. FOOTER */}
         <View style={styles.footer}>
-             <Text style={styles.footerText}>
-                System generated by Hongson T-Folio | หน้า {index + 1} จาก {entries.length}
-             </Text>
+          <Text style={styles.footerText}>
+            System generated by Hongson T-Folio | หน้า {index + 1} จาก {entries.length}
+          </Text>
         </View>
 
       </Page>

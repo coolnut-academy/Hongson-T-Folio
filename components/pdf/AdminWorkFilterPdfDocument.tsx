@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     flexDirection: 'column',
   },
-  
+
   // Header Section
   header: {
     flexDirection: 'row',
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     marginBottom: 6,
   },
-  
+
   // Title and Meta Section
   titleSection: {
     marginBottom: 15,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     fontWeight: 600,
     color: '#1e293b',
   },
-  
+
   // Image Grid Section
   imageSection: {
     marginBottom: 20,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#94a3b8',
   },
-  
+
   // Description Sections
   descriptionSection: {
     marginBottom: 15,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 1.6,
     color: '#334155',
-    textAlign: 'justify',
+    textAlign: 'left',
     minHeight: 40,
   },
   emptyContent: {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontStyle: 'italic',
   },
-  
+
   // Footer Section
   footer: {
     marginTop: 'auto',
@@ -236,20 +236,20 @@ const formatDate = (date: Date): string => {
 // Helper function to validate and normalize image URLs
 const normalizeImageUrl = (url: string | undefined): string | null => {
   if (!url || typeof url !== 'string') return null;
-  
+
   const trimmedUrl = url.trim();
   if (trimmedUrl === '') return null;
-  
+
   // ถ้าเป็น data URL (base64) ให้ใช้ตามเดิม
   if (trimmedUrl.startsWith('data:')) {
     return trimmedUrl;
   }
-  
+
   // ถ้าเป็น relative path ให้เพิ่ม protocol
   if (trimmedUrl.startsWith('//')) {
     return `https:${trimmedUrl}`;
   }
-  
+
   // ถ้าไม่มี protocol ให้เพิ่ม https://
   if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
     // ถ้าเป็น path ภายใน (เริ่มด้วย /) ให้ใช้ตามเดิม
@@ -258,7 +258,7 @@ const normalizeImageUrl = (url: string | undefined): string | null => {
     }
     return `https://${trimmedUrl}`;
   }
-  
+
   return trimmedUrl;
 };
 
@@ -267,118 +267,118 @@ const AdminWorkFilterPdfDocument = ({
   filterMeta,
 }: AdminWorkFilterPdfDocumentProps) => {
   const isAllTeachers = filterMeta?.isAllTeachers || false;
-  
+
   return (
-  <Document>
-    {results.map((work, index) => (
-      <Page key={work.id} size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoContainer}>
-              <Image
-                src="/logo-hongson-metaverse.png"
-                style={styles.logo}
-              />
-            </View>
-            <View style={styles.schoolInfo}>
-              <Text style={styles.schoolName}>
-                โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
-              </Text>
-              <Text style={styles.schoolSubtext}>
-                <Text style={{ fontSize: 12, color: '#475569', lineHeight: 1.3 }}>
-                  สำนักงานเขตพื้นที่การศึกษามัธยมศึกษาแม่ฮ่องสอน&nbsp;
+    <Document>
+      {results.map((work, index) => (
+        <Page key={work.id} size="A4" style={styles.page}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.logoContainer}>
+                <Image
+                  src="/logo-hongson-metaverse.png"
+                  style={styles.logo}
+                />
+              </View>
+              <View style={styles.schoolInfo}>
+                <Text style={styles.schoolName}>
+                  โรงเรียนห้องสอนศึกษา ในพระอุปถัมภ์ฯ
                 </Text>
-              </Text>
+                <Text style={styles.schoolSubtext}>
+                  <Text style={{ fontSize: 12, color: '#475569', lineHeight: 1.3 }}>
+                    สำนักงานเขตพื้นที่การศึกษามัธยมศึกษาแม่ฮ่องสอน&nbsp;
+                  </Text>
+                </Text>
+              </View>
+            </View>
+            <View style={styles.headerRight}>
+              {isAllTeachers ? (
+                <>
+                  <Text style={styles.metaLabel}>รายงาน:</Text>
+                  <Text style={styles.metaValue}>ผลงานครูทั้งหมด</Text>
+                  <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
+                  <Text style={styles.metaValue}>{work.teacher_name}</Text>
+                  <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
+                  <Text style={styles.metaValue}>{work.subject_group}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
+                  <Text style={styles.metaValue}>{work.teacher_name}</Text>
+                  <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
+                  <Text style={styles.metaValue}>{work.subject_group}</Text>
+                </>
+              )}
+              <Text style={styles.metaLabel}>วันที่จัดกิจกรรม:</Text>
+              <Text style={styles.metaValue}>{formatDate(work.created_at)}</Text>
             </View>
           </View>
-          <View style={styles.headerRight}>
-            {isAllTeachers ? (
-              <>
-                <Text style={styles.metaLabel}>รายงาน:</Text>
-                <Text style={styles.metaValue}>ผลงานครูทั้งหมด</Text>
-                <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
-                <Text style={styles.metaValue}>{work.teacher_name}</Text>
-                <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
-                <Text style={styles.metaValue}>{work.subject_group}</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
-                <Text style={styles.metaValue}>{work.teacher_name}</Text>
-                <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
-                <Text style={styles.metaValue}>{work.subject_group}</Text>
-              </>
-            )}
-            <Text style={styles.metaLabel}>วันที่จัดกิจกรรม:</Text>
-            <Text style={styles.metaValue}>{formatDate(work.created_at)}</Text>
-          </View>
-        </View>
 
-        {/* Title and Meta */}
-        <View style={styles.titleSection}>
-          <Text style={styles.workTitle}>{work.title}</Text>
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaItemLabel}>หมวดหมู่งาน:</Text>
-              <Text style={styles.metaItemValue}>{work.work_category}</Text>
+          {/* Title and Meta */}
+          <View style={styles.titleSection}>
+            <Text style={styles.workTitle}>{work.title}</Text>
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaItemLabel}>หมวดหมู่งาน:</Text>
+                <Text style={styles.metaItemValue}>{work.work_category}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Image Grid (2x2) */}
-        <View style={styles.imageSection}>
-          <Text style={styles.imageSectionTitle}>รูปภาพประกอบ</Text>
-          <View style={styles.imageGrid}>
-            {Array.from({ length: 4 }).map((_, i) => {
-              // ใช้ normalizeImageUrl เพื่อตรวจสอบและ normalize URL
-              const imageUrl = normalizeImageUrl(work.images?.[i]);
-              
-              // ตรวจสอบอีกครั้งว่า imageUrl ถูกต้อง
-              const isValidUrl = imageUrl && (
-                imageUrl.startsWith('http://') || 
-                imageUrl.startsWith('https://') || 
-                imageUrl.startsWith('/') ||
-                imageUrl.startsWith('data:')
-              );
-              
-              return (
-                <View key={i} style={styles.imageCell}>
-                  {isValidUrl ? (
-                    <Image 
-                      src={imageUrl} 
-                      style={styles.image}
-                    />
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <Text style={styles.imagePlaceholderText}>ไม่มีภาพ</Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
+          {/* Image Grid (2x2) */}
+          <View style={styles.imageSection}>
+            <Text style={styles.imageSectionTitle}>รูปภาพประกอบ</Text>
+            <View style={styles.imageGrid}>
+              {Array.from({ length: 4 }).map((_, i) => {
+                // ใช้ normalizeImageUrl เพื่อตรวจสอบและ normalize URL
+                const imageUrl = normalizeImageUrl(work.images?.[i]);
+
+                // ตรวจสอบอีกครั้งว่า imageUrl ถูกต้อง
+                const isValidUrl = imageUrl && (
+                  imageUrl.startsWith('http://') ||
+                  imageUrl.startsWith('https://') ||
+                  imageUrl.startsWith('/') ||
+                  imageUrl.startsWith('data:')
+                );
+
+                return (
+                  <View key={i} style={styles.imageCell}>
+                    {isValidUrl ? (
+                      <Image
+                        src={imageUrl}
+                        style={styles.image}
+                      />
+                    ) : (
+                      <View style={styles.imagePlaceholder}>
+                        <Text style={styles.imagePlaceholderText}>ไม่มีภาพ</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
           </View>
-        </View>
 
-        {/* Description Sections */}
-        <View style={styles.descriptionSection}>
-          <Text style={styles.sectionTitle}>สรุปกิจกรรม / รายละเอียด</Text>
-          <Text style={styles.sectionContent}>
-            {work.description || (
-              <Text style={styles.emptyContent}>- ไม่มีรายละเอียด -</Text>
-            )}
-          </Text>
-        </View>
+          {/* Description Sections */}
+          <View style={styles.descriptionSection}>
+            <Text style={styles.sectionTitle}>สรุปกิจกรรม / รายละเอียด</Text>
+            <Text style={styles.sectionContent}>
+              {work.description || (
+                <Text style={styles.emptyContent}>- ไม่มีรายละเอียด -</Text>
+              )}
+            </Text>
+          </View>
 
-        {/* Page Number Only */}
-        <View style={styles.footer}>
-          <Text style={styles.pageNumber}>
-            หน้า {index + 1} / {results.length}
-          </Text>
-        </View>
-      </Page>
-    ))}
-  </Document>
+          {/* Page Number Only */}
+          <View style={styles.footer}>
+            <Text style={styles.pageNumber}>
+              หน้า {index + 1} / {results.length}
+            </Text>
+          </View>
+        </Page>
+      ))}
+    </Document>
   );
 };
 

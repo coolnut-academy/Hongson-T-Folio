@@ -14,52 +14,41 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [checkingSiteStatus, setCheckingSiteStatus] = useState(true);
-  
+  const [checkingSiteStatus, setCheckingSiteStatus] = useState(false); // ⚡ Start as false to show UI immediately
+
   const { signIn, userData } = useAuth();
   const router = useRouter();
 
-  // ⚡ OPTIMIZED: Check site status with cache (instant load)
+  // ⚡ OPTIMIZED: Check site status in background (Optimistic UI)
   useEffect(() => {
     // Check if user has admin maintenance access from localStorage first
     if (typeof window !== 'undefined') {
       const adminAccess = localStorage.getItem(CACHE_KEYS.ADMIN_ACCESS);
       const accessTime = localStorage.getItem(CACHE_KEYS.ADMIN_ACCESS_TIME);
-      
+
       // Check if access is valid (within 1 hour)
       if (adminAccess === 'true' && accessTime) {
         const timeDiff = Date.now() - parseInt(accessTime, 10);
         const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
-        
+
         if (timeDiff < oneHour) {
           // Valid admin access - clear it and allow login
           localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS);
           localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS_TIME);
-          setCheckingSiteStatus(false);
           return; // Exit early - don't check site status
-        } else {
-          // Expired - clear it
-          localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS);
-          localStorage.removeItem(CACHE_KEYS.ADMIN_ACCESS_TIME);
         }
       }
     }
 
-    // ⚡ Check cache first (instant load - no network delay)
+    // ⚡ Check cache first
     const cachedStatus = getCache<boolean>(CACHE_KEYS.SITE_STATUS);
-    
+
     if (cachedStatus !== null) {
-      // Cache hit! Use cached value immediately
       if (cachedStatus === false) {
         router.push('/maintenance');
         return;
-      } else {
-        // Site enabled - allow access immediately
-        setCheckingSiteStatus(false);
       }
-    } else {
-      // No cache - show loading (first time only)
-      setCheckingSiteStatus(true);
+      // If true, do nothing (UI is already shown)
     }
 
     // 🔄 Background sync: Poll API route for site status updates
@@ -67,31 +56,25 @@ function LoginPageContent() {
       try {
         const response = await fetch('/api/system/site-status');
         const data = await response.json();
-        
+
         if (data.success !== false) {
           const siteEnabled = data.siteEnabled !== false;
-          
+
           // Update cache (5 minutes TTL)
           setCache(CACHE_KEYS.SITE_STATUS, siteEnabled, 5 * 60 * 1000);
-          
+
           // Update UI if needed
           if (siteEnabled === false) {
             router.push('/maintenance');
-          } else {
-            setCheckingSiteStatus(false);
           }
-        } else {
-          // On error, allow access (fail open)
-          setCheckingSiteStatus(false);
         }
       } catch (error) {
         console.error('Error checking site status:', error);
-        // On error, allow access (fail open)
-        setCheckingSiteStatus(false);
+        // Fail open - stay on login page
       }
     };
 
-    // Initial check
+    // Initial check (non-blocking)
     checkSiteStatus();
 
     // Poll every 30 seconds for updates
@@ -129,25 +112,17 @@ function LoginPageContent() {
     }
   };
 
-  // Show loading while checking site status
-  if (checkingSiteStatus) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">กำลังตรวจสอบสถานะระบบ...</p>
-        </div>
-      </div>
-    );
-  }
+  // 🚀 OPTIMIZED: Render immediately (Optimistic UI)
+  // We don't block the UI for site status check anymore.
+  // The check runs in background and redirects only if site is actually disabled.
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 relative overflow-hidden font-sans">
-      
+
       {/* 🎨 Background Animation - OPTIMIZED (reduced complexity) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div 
-          animate={{ 
+        <motion.div
+          animate={{
             y: [0, -15, 0],
             scale: [1, 1.03, 1]
           }}
@@ -155,8 +130,8 @@ function LoginPageContent() {
           className="absolute -top-[10%] -right-[10%] w-[600px] h-[600px] bg-green-200/30 rounded-full blur-[60px]"
           style={{ willChange: 'transform' }}
         />
-        <motion.div 
-          animate={{ 
+        <motion.div
+          animate={{
             y: [0, 20, 0],
             scale: [1, 1.05, 1]
           }}
@@ -167,35 +142,35 @@ function LoginPageContent() {
       </div>
 
       {/* 📦 Main Card Container */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="z-10 w-full max-w-md p-6 sm:p-8"
       >
         <div className="relative bg-white/80 backdrop-blur-2xl border border-white/60 shadow-2xl shadow-green-500/10 rounded-[2rem] p-8 overflow-hidden">
-          
+
           {/* เส้นสีด้านบนการ์ด */}
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500" />
 
           {/* 🎓 Header Section */}
           <div className="text-center space-y-4 mb-8">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", duration: 0.6, bounce: 0.5 }}
               className="w-20 h-20 mx-auto rounded-full flex items-center justify-center overflow-hidden mb-4"
             >
-              <Image 
-                src="/logo-hongson-metaverse.png" 
-                alt="Hongson Logo" 
+              <Image
+                src="/logo-hongson-metaverse.png"
+                alt="Hongson Logo"
                 width={80}
                 height={80}
                 className="object-contain"
                 priority
               />
             </motion.div>
-            
+
             <div>
               <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
                 Hongson <span className="text-green-600">T-Folio</span>
@@ -208,7 +183,7 @@ function LoginPageContent() {
 
           {/* 📝 Form Section */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            
+
             {/* Username Input */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-400 ml-1 uppercase tracking-wider">ชื่อผู้ใช้งาน</label>
@@ -262,7 +237,7 @@ function LoginPageContent() {
             {/* ⚠️ Error Message Animation */}
             <AnimatePresence>
               {error && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, height: 0, marginTop: 0 }}
                   animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
                   exit={{ opacity: 0, height: 0, marginTop: 0 }}
@@ -298,46 +273,46 @@ function LoginPageContent() {
           </form>
 
           {/* Developer Credit - OPTIMIZED (simplified animations) */}
-<motion.div 
-  initial={{ opacity: 0, y: 8 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
-  className="mt-8 flex items-center justify-center"
->
-  <div
-    className="relative inline-flex items-center gap-3 rounded-full border border-emerald-200/70 bg-gradient-to-r from-slate-50/90 via-white/95 to-emerald-50/90 px-4 sm:px-5 py-2 shadow-sm hover:shadow-md backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] group cursor-default"
-  >
-    {/* Glow ด้านหลัง */}
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 -z-10 rounded-full bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.20),_transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-    />
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
+            className="mt-8 flex items-center justify-center"
+          >
+            <div
+              className="relative inline-flex items-center gap-3 rounded-full border border-emerald-200/70 bg-gradient-to-r from-slate-50/90 via-white/95 to-emerald-50/90 px-4 sm:px-5 py-2 shadow-sm hover:shadow-md backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] group cursor-default"
+            >
+              {/* Glow ด้านหลัง */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 -z-10 rounded-full bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.20),_transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              />
 
-    {/* Icon ฝั่งซ้าย */}
-    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50/80 shadow-inner group-hover:rotate-[-8deg] transition-transform duration-300">
-      <Code2 className="w-4 h-4 text-emerald-600" strokeWidth={2.4} />
-    </div>
+              {/* Icon ฝั่งซ้าย */}
+              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50/80 shadow-inner group-hover:rotate-[-8deg] transition-transform duration-300">
+                <Code2 className="w-4 h-4 text-emerald-600" strokeWidth={2.4} />
+              </div>
 
-    {/* ตัวอักษร */}
-    <div className="flex flex-col leading-tight">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-500/80">
-        Developer
-      </span>
-      <span className="text-xs sm:text-sm font-semibold bg-gradient-to-r from-slate-800 via-emerald-700 to-emerald-500 bg-clip-text text-transparent">
-        ผู้พัฒนา: นายสาธิต ศิริวัชน์
-      </span>
-    </div>
+              {/* ตัวอักษร */}
+              <div className="flex flex-col leading-tight">
+                <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-500/80">
+                  Developer
+                </span>
+                <span className="text-xs sm:text-sm font-semibold bg-gradient-to-r from-slate-800 via-emerald-700 to-emerald-500 bg-clip-text text-transparent">
+                  ผู้พัฒนา: นายสาธิต ศิริวัชน์
+                </span>
+              </div>
 
-    {/* Sparkles ฝั่งขวา */}
-    <div className="relative flex h-6 w-6 items-center justify-center">
-      <span
-        aria-hidden="true"
-        className="absolute inline-flex h-full w-full rounded-full border border-emerald-300/60 opacity-0 group-hover:opacity-80 group-hover:scale-110 transition-all duration-300"
-      />
-      <Sparkles className="w-3.5 h-3.5 text-emerald-400 group-hover:animate-pulse" />
-    </div>
-  </div>
-</motion.div>
+              {/* Sparkles ฝั่งขวา */}
+              <div className="relative flex h-6 w-6 items-center justify-center">
+                <span
+                  aria-hidden="true"
+                  className="absolute inline-flex h-full w-full rounded-full border border-emerald-300/60 opacity-0 group-hover:opacity-80 group-hover:scale-110 transition-all duration-300"
+                />
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400 group-hover:animate-pulse" />
+              </div>
+            </div>
+          </motion.div>
         </div>
       </motion.div>
     </div>
