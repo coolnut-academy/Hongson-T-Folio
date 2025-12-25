@@ -73,3 +73,16 @@ export const buildRangeLabel = (range: RangeLabelInput) => {
 };
 
 
+export const processThaiText = (text: string | null | undefined): string => {
+  if (!text) return '';
+  try {
+    const segmenter = new Intl.Segmenter('th', { granularity: 'word' });
+    return Array.from(segmenter.segment(text))
+      .map((segment) => segment.segment)
+      .join('\u200B');
+  } catch (_) {
+    // Fallback for environments without Intl.Segmenter support
+    return text;
+  }
+};
+

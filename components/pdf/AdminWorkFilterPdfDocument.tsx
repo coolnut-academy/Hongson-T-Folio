@@ -2,6 +2,7 @@
 
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import type { WorkRecord } from '@/lib/filterData';
+import { processThaiText } from '@/lib/utils';
 
 // Register Sarabun fonts for Thai text support
 // Must be registered before component renders
@@ -122,6 +123,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     marginBottom: 10,
     lineHeight: 1.4,
+    textAlign: 'left',
   },
   metaRow: {
     flexDirection: 'row',
@@ -298,16 +300,16 @@ const AdminWorkFilterPdfDocument = ({
                   <Text style={styles.metaLabel}>รายงาน:</Text>
                   <Text style={styles.metaValue}>ผลงานครูทั้งหมด</Text>
                   <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
-                  <Text style={styles.metaValue}>{work.teacher_name}</Text>
+                  <Text style={styles.metaValue}>{processThaiText(work.teacher_name)}</Text>
                   <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
-                  <Text style={styles.metaValue}>{work.subject_group}</Text>
+                  <Text style={styles.metaValue}>{processThaiText(work.subject_group)}</Text>
                 </>
               ) : (
                 <>
                   <Text style={styles.metaLabel}>ครูผู้สอน:</Text>
-                  <Text style={styles.metaValue}>{work.teacher_name}</Text>
+                  <Text style={styles.metaValue}>{processThaiText(work.teacher_name)}</Text>
                   <Text style={styles.metaLabel}>กลุ่มสาระ:</Text>
-                  <Text style={styles.metaValue}>{work.subject_group}</Text>
+                  <Text style={styles.metaValue}>{processThaiText(work.subject_group)}</Text>
                 </>
               )}
               <Text style={styles.metaLabel}>วันที่จัดกิจกรรม:</Text>
@@ -317,11 +319,11 @@ const AdminWorkFilterPdfDocument = ({
 
           {/* Title and Meta */}
           <View style={styles.titleSection}>
-            <Text style={styles.workTitle}>{work.title}</Text>
+            <Text style={styles.workTitle}>{processThaiText(work.title)}</Text>
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
                 <Text style={styles.metaItemLabel}>หมวดหมู่งาน:</Text>
-                <Text style={styles.metaItemValue}>{work.work_category}</Text>
+                <Text style={styles.metaItemValue}>{processThaiText(work.work_category)}</Text>
               </View>
             </View>
           </View>
@@ -364,7 +366,7 @@ const AdminWorkFilterPdfDocument = ({
           <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>สรุปกิจกรรม / รายละเอียด</Text>
             <Text style={styles.sectionContent}>
-              {work.description || (
+              {processThaiText(work.description) || (
                 <Text style={styles.emptyContent}>- ไม่มีรายละเอียด -</Text>
               )}
             </Text>

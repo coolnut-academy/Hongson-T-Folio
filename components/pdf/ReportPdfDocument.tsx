@@ -1,6 +1,7 @@
 'use client';
 
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { processThaiText } from '@/lib/utils';
 
 // --- (คงส่วน registerSarabunFonts ไว้เหมือนเดิม) ---
 const registerSarabunFonts = () => {
@@ -97,6 +98,7 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     marginBottom: 5,
     color: '#1e293b',
+    textAlign: 'left',
   },
   entryMetaBadge: {
     alignSelf: 'flex-start',
@@ -207,17 +209,17 @@ const ReportPdfDocument = ({
 
         {/* 2. CONTENT: พื้นที่เนื้อหาหลัก */}
         <View style={styles.contentBody}>
-          <Text style={styles.entryTitle}>{index + 1}. {entry.title}</Text>
+          <Text style={styles.entryTitle}>{index + 1}. {processThaiText(entry.title)}</Text>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={styles.entryMetaBadge}>
-              หมวดหมู่: {entry.category} | วันที่: {formatDateRange(entry.dateStart, entry.dateEnd)}
+              หมวดหมู่: {processThaiText(entry.category)} | วันที่: {formatDateRange(entry.dateStart, entry.dateEnd)}
             </Text>
           </View>
 
           <View style={styles.entryDescContainer}>
             <Text style={styles.entryDesc}>
-              {truncateText(entry.description)}
+              {processThaiText(truncateText(entry.description))}
             </Text>
           </View>
 
